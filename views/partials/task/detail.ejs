@@ -1,0 +1,196 @@
+<%#
+  Task drawer content. Order (primary → secondary):
+  title · fields · description · SUBTASKS · (Sales: client actions) · comments · activity
+%>
+<%
+  const assigneeIds = new Set(assignees.map(a => a.id));
+  const activeSubs = subtasks.filter(s => !s.done);
+  const doneSubs = subtasks.filter(s => s.done);
+  const isClient = space.card_mode === 'client' && salesClient;
+  const isMeeting = task.kind === 'meeting';
+%>
+<div class="td" id="taskForm" data-task-id="<%= task.id %>" data-space-id="<%= space.id %>" data-focus-subtask="<%= focusSubtask || '' %>">
+  <div class="td-toolbar">
+    <button type="button" class="td-complete<%= task.done ? ' is-done' : '' %>" id="doneBtn" data-done="<%= task.done %>" aria-pressed="<%= task.done ? 'true' : 'false' %>">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 8.2l2.6 2.6L12 5.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span><%= task.done ? 'Выполнено' : 'Отметить выполненной' %></span>
+    </button>
+    <span class="tc-spacer"></span>
+    <span class="td-crumb"><%= space.icon %> <%= space.name %></span>
+    <% if (canManage) { %>
+    <button type="button" class="icon-btn" id="deleteTaskBtn" title="Удалить задачу" aria-label="Удалить задачу">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 4.5h9M6.5 4.5V3h3v1.5M5 4.5l.5 8h5l.5-8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+    </button>
+    <% } %>
+    <button type="button" class="icon-btn" data-drawer-close title="Закрыть (Esc)" aria-label="Закрыть">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+
+  <div class="td-body">
+    <% if (isClient) { %><div class="td-client-line"><a href="/clients/<%= salesClient.id %>" target="_blank"><%= salesClient.name %></a><span class="lv-muted"> — название сделки:</span></div><% } %>
+    <textarea id="f-title" class="td-title" rows="1" aria-label="<%= isClient ? 'Название сделки' : 'Название задачи' %>" <%= canManage ? '' : 'readonly' %>><%= task.title %></textarea>
+
+    <div class="td-fields">
+      <% if (!isClient) { %>
+      <div class="field-row">
+        <div class="field-label">Тип</div>
+        <div class="field-control">
+          <div class="segmented seg-sm" id="kindSwitch" role="group" aria-label="Тип">
+            <button type="button" data-kind="task" class="<%= isMeeting ? '' : 'active' %>" <%= canManage ? '' : 'disabled' %>>Задача</button>
+            <button type="button" data-kind="meeting" class="<%= isMeeting ? 'active' : '' %>" <%= canManage ? '' : 'disabled' %>>📞 Созвон</button>
+          </div>
+        </div>
+      </div>
+      <% } %>
+      <div class="field-row meeting-only" <%= isMeeting ? '' : 'hidden' %>>
+        <div class="field-label">Ссылка</div>
+        <div class="field-control meeting-link">
+          <input type="url" id="f-meeting-url" class="field-input" placeholder="https://telemost.yandex.ru/… или Zoom / Meet" value="<%= task.meeting_url || '' %>" <%= canManage ? '' : 'readonly' %>>
+          <a class="btn btn-sm btn-primary" id="joinMeeting" href="<%= task.meeting_url || '#' %>" target="_blank" rel="noopener" <%= task.meeting_url ? '' : 'hidden' %>>Подключиться</a>
+          <a class="btn btn-sm" href="/tasks/<%= task.id %>/ics" title="Добавить в Google / iPhone / Outlook календарь">В календарь</a>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-label" data-people-label><%= isMeeting ? 'Участники' : 'Исполнитель' %></div>
+        <div class="field-control">
+          <div class="assignee-chips" id="assigneeChips">
+            <% assignees.forEach(a => { %><span class="chip" data-chip-user="<%= a.id %>"><span class="avatar avatar-xs"><%= fmt.initials(a.name) %></span><%= a.name %></span><% }) %>
+            <% if (!assignees.length && !canManage) { %><span class="field-empty">Не назначено</span><% } %>
+          </div>
+          <% if (canManage) { %>
+          <details class="popover" id="assigneePicker">
+            <summary class="field-value field-add"><%= assignees.length ? 'Изменить' : 'Назначить' %></summary>
+            <div class="popover-body" id="assigneeList">
+              <% users.forEach(u => { %>
+                <label class="pick-row"><input type="checkbox" data-assignee-toggle="<%= u.id %>" data-name="<%= u.name %>" <%= assigneeIds.has(u.id) ? 'checked' : '' %>><span class="avatar avatar-xs"><%= fmt.initials(u.name) %></span><%= u.name %></label>
+              <% }) %>
+            </div>
+          </details>
+          <% } %>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field-label">Срок</div>
+        <div class="field-control"><%- include('datetime-picker', { id: 'task', date: task.due_date, time: task.due_time, disabled: !canManage }) %></div>
+      </div>
+
+      <% if (!isClient) { %>
+      <div class="field-row">
+        <div class="field-label">Проект</div>
+        <div class="field-control">
+          <% if (!canManage || !projects.length) { %>
+          <span class="field-text"><%= project ? project.name : 'Без проекта' %></span>
+          <% } else { %>
+          <%# Ticks: this task's own account + extra ones → "Создать копии" makes the same task for each. %>
+          <div class="acc-ticks" data-acc-ticks data-task-id="<%= task.id %>" data-own="<%= task.project_id || '' %>">
+            <% projects.forEach(p => { %><label class="cal-person"><input type="checkbox" value="<%= p.id %>" <%= task.project_id === p.id ? 'checked' : '' %>><span class="cal-acc-dot acc-<%= p.id % 8 %>"></span><%= p.name %><% if (task.project_id === p.id) { %> <span class="lv-muted">· эта задача</span><% } %></label><% }) %>
+            <button type="button" class="btn btn-sm btn-primary" data-acc-copy hidden></button>
+          </div>
+          <% } %>
+        </div>
+      </div>
+      <% } %>
+
+      <div class="field-row">
+        <div class="field-label"><%= isClient ? 'Этап' : 'Статус' %></div>
+        <div class="field-control">
+          <select id="f-section" class="field-select" <%= canMove ? '' : 'disabled' %>>
+            <% sections.forEach(s => { %><option value="<%= s.id %>" <%= s.id === task.section_id ? 'selected' : '' %>><%= s.name %></option><% }) %>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field-label">Приоритет</div>
+        <div class="field-control">
+          <select id="f-priority" class="field-select prio-<%= task.priority %>" <%= canManage ? '' : 'disabled' %>>
+            <option value="low" <%= task.priority === 'low' ? 'selected' : '' %>>Низкий</option>
+            <option value="medium" <%= task.priority === 'medium' ? 'selected' : '' %>>Средний</option>
+            <option value="high" <%= task.priority === 'high' ? 'selected' : '' %>>Высокий</option>
+          </select>
+        </div>
+      </div>
+
+      <%# Recurring: when completed, the next one is created with the date moved forward. %>
+      <div class="field-row">
+        <div class="field-label">Повтор</div>
+        <div class="field-control">
+          <select id="f-repeat" class="field-select" <%= canManage ? '' : 'disabled' %> title="Когда отметите выполненной — появится следующая с новой датой">
+            <option value="" <%= !task.repeat_rule ? 'selected' : '' %>>Не повторять</option>
+            <% Object.entries(fmt.repeatRules).forEach(([k, label]) => { %>
+              <option value="<%= k %>" <%= task.repeat_rule === k ? 'selected' : '' %>>🔁 <%= label %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+
+      <% if (linked.length) { %>
+      <div class="field-row">
+        <div class="field-label"><%= isClient ? 'Другие сделки' : 'Связанные' %></div>
+        <div class="field-control linked-list">
+          <% linked.forEach(l => { %>
+            <a href="?task=<%= l.id %>" class="linked-chip drawer-link<%= l.done ? ' is-done' : '' %>" data-task-id="<%= l.id %>" title="<%= l.rel === 'deal' ? 'Сделка того же клиента' : l.rel === 'parent' ? 'Исходная карточка' : 'Вынесенная подзадача' %>"><%= l.rel === 'deal' ? '•' : l.rel === 'parent' ? '↰' : '↳' %> <%= l.title %> <span class="lv-muted">· <%= l.rel === 'deal' && l.space_name !== space.name ? l.space_name + ' / ' : '' %><%= l.section_name %><%= l.done ? ' · закрыта' : '' %></span></a>
+          <% }) %>
+        </div>
+      </div>
+      <% } %>
+      <% if (isClient) { %><%- include('client-fields', { c: salesClient }) %><% } %>
+    </div>
+
+    <section class="td-section">
+      <h3 class="td-h">Описание</h3>
+      <textarea id="f-description" class="td-desc" rows="2" placeholder="<%= canManage ? 'Добавьте описание…' : 'Нет описания' %>" <%= canManage ? '' : 'readonly' %>><%= task.description %></textarea>
+    </section>
+
+    <section class="td-section td-subtasks" id="subtasksSection">
+      <h3 class="td-h"><%= isClient ? 'Действия по клиенту' : 'Подзадачи' %> <span class="td-h-count" id="subtaskProgress"><%= subtasks.length ? `${doneSubs.length}/${subtasks.length}` : '' %></span></h3>
+      <ul class="st-list" id="subtaskList">
+        <% activeSubs.forEach(s => { %><%- include('subtask-row', { s, users, canManage }) %><% }) %>
+      </ul>
+      <button type="button" class="td-add-sub" id="addSubtaskBtn">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Добавить <%= isClient ? 'действие' : 'подзадачу' %>
+      </button>
+      <form id="subtaskForm" class="st-new" hidden>
+        <span class="check-box is-placeholder" aria-hidden="true"></span>
+        <input type="text" name="title" class="st-new-title" placeholder="Что сделать? Срок и исполнителя — кружками после добавления" autocomplete="off" enterkeyhint="done" aria-label="Название новой подзадачи">
+        <button type="submit" class="btn btn-sm btn-primary">Добавить</button>
+      </form>
+      <details class="st-completed" id="completedSubtasks" <%= doneSubs.length ? '' : 'hidden' %>>
+        <summary>Выполнено (<span data-done-count><%= doneSubs.length %></span>)</summary>
+        <ul class="st-list" id="subtaskDoneList">
+          <% doneSubs.forEach(s => { %><%- include('subtask-row', { s, users, canManage }) %><% }) %>
+        </ul>
+      </details>
+    </section>
+
+    <% if (isClient) { %><%- include('client-actions', { c: salesClient }) %><% } %>
+
+    <section class="td-section td-secondary">
+      <h3 class="td-h">Комментарии <span class="td-h-count" id="commentCount"><%= comments.length || '' %></span></h3>
+      <div class="comment-list" id="commentList">
+        <% comments.forEach(c => { %>
+          <div class="comment"><span class="avatar avatar-sm"><%= fmt.initials(c.author_name) %></span><div><div class="comment-meta"><b><%= c.author_name %></b> · <%= fmt.fmtTimestamp(c.created_at) %></div><div class="comment-body"><%= c.body %></div></div></div>
+        <% }) %>
+      </div>
+      <form id="commentForm" class="comment-form">
+        <textarea name="body" rows="1" placeholder="Написать комментарий… (Ctrl+Enter — отправить)" required aria-label="Комментарий"></textarea>
+        <button type="submit" class="btn btn-sm btn-primary">Отправить</button>
+      </form>
+    </section>
+
+    <section class="td-section td-secondary">
+      <details class="activity" <%= activity.length <= 3 ? 'open' : '' %>>
+        <summary class="td-h">Активность <span class="td-h-count"><%= activity.length || '' %></span></summary>
+        <ul class="activity-list">
+          <% activity.forEach(e => { %>
+            <li><span class="activity-body"><% if (e.author_name) { %><b><%= e.author_name %></b> — <% } %><%= e.body %></span><span class="activity-time"><%= fmt.fmtTimestamp(e.created_at) %></span></li>
+          <% }) %>
+          <% if (!activity.length) { %><li class="field-empty">Пока пусто</li><% } %>
+        </ul>
+      </details>
+    </section>
+  </div>
+</div>

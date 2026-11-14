@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Вход — TeamCRM</title>
+  <link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png?v=2"><link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png?v=2">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#16171d">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png?v=2">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="login-page">
+    <div class="card login-box">
+      <h1>TeamCRM</h1>
+      <p class="subtitle">Вход в рабочее пространство</p>
+      <% if (error) { %><div class="error-box"><%= error %></div><% } %>
+      <form method="POST" action="/login">
+        <input type="hidden" name="next" value="<%= typeof next !== 'undefined' ? next : '/' %>">
+        <label>Email</label>
+        <input type="email" name="email" required autofocus>
+        <label>Пароль</label>
+        <input type="password" name="password" required>
+        <div class="dialog-actions" style="margin-top:16px; justify-content:stretch;">
+          <button type="submit" class="btn btn-primary" style="width:100%;">Войти</button>
+        </div>
+      </form>
+      <div class="switch-link">Нет аккаунта? <a href="/signup">Зарегистрироваться по инвайт-коду</a></div>
+    </div>
+  </div>
+</body>
+</html>

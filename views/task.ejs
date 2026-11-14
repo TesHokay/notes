@@ -1,0 +1,9 @@
+<%# Standalone task page — only for users who can see this task but not its board. %>
+<%- include('partials/layout-start') %>
+<div class="card td-standalone">
+  <%- include('partials/task/detail') %>
+</div>
+<script src="/js/api.js"></script>
+<script src="/js/task.js"></script>
+<script>window.initTaskPage(document.getElementById('taskForm'));</script>
+<%- include('partials/layout-end') %>

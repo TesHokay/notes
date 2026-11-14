@@ -1,0 +1,36 @@
+<%# Compact client metadata rows inside the Sales drawer. Locals: c %>
+<%
+  const href = c.website ? (c.website.indexOf('http') === 0 ? c.website : 'https://' + c.website) : '';
+  const touch = fmt.dueInfo(c.next_touch_at, null);
+%>
+<div class="field-row">
+  <div class="field-label">Тип</div>
+  <div class="field-control">
+    <div class="segmented lead-type-switch" data-lead-type-client="<%= c.id %>">
+      <% [['agency', '🏢 Агентство'], ['business', '🛍 Бизнес'], ['', '—']].forEach(([v, label]) => { %><button type="button" data-lead-type="<%= v %>" class="<%= (c.lead_type || '') === v ? 'active' : '' %>"><%= label %></button><% }) %>
+    </div>
+  </div>
+</div>
+<div class="field-row">
+  <div class="field-label">Клиент</div>
+  <div class="field-control field-text"><a href="/clients/<%= c.id %>" target="_blank"><%= c.name %></a><% if (c.website) { %> · <a href="<%= href %>" target="_blank" rel="noopener"><%= c.website %></a><% } %></div>
+</div>
+<% if (c.contact_name || c.contact_telegram || c.contact_phone || c.contact_email) { %>
+<div class="field-row">
+  <div class="field-label">Контакт</div>
+  <div class="field-control field-text">
+    <%= c.contact_name %>
+    <% if (c.contact_telegram) { %> · <a href="https://t.me/<%= c.contact_telegram.replace('@', '') %>" target="_blank" rel="noopener"><%= c.contact_telegram %></a><% } %>
+    <% if (c.contact_phone) { %> · <a href="tel:<%= fmt.phoneDigits(c.contact_phone, true) %>"><%= c.contact_phone %></a><% } %>
+    <% if (c.contact_email) { %> · <a href="mailto:<%= c.contact_email %>"><%= c.contact_email %></a><% } %>
+  </div>
+</div>
+<%- include('../contact-links', { c }) %>
+<% } %>
+<% if (c.potential_value) { %>
+<div class="field-row"><div class="field-label">Потенциал</div><div class="field-control field-text"><%= c.potential_value %></div></div>
+<% } %>
+<div class="field-row">
+  <div class="field-label">След. контакт</div>
+  <div class="field-control field-text"><span class="due-<%= touch.state %>"><%= touch.full || '—' %></span><% if (c.hold_reason) { %> · на hold: <%= c.hold_reason %><% } %></div>
+</div>

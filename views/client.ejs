@@ -1,0 +1,73 @@
+<%- include('partials/layout-start') %>
+
+<p class="subtitle"><a href="/clients">← Клиенты</a></p>
+<h1><%= salesClient.name %></h1>
+<%- include('partials/contact-links', { c: salesClient }) %>
+
+<div class="card" style="padding: 16px; margin-bottom: 16px; max-width: 600px;">
+  <form method="POST" action="/clients/<%= salesClient.id %>">
+    <label>Название</label>
+    <input type="text" name="name" value="<%= salesClient.name %>">
+    <label>Сайт</label>
+    <input type="text" name="website" value="<%= salesClient.website %>">
+    <label>Тип лида</label>
+    <select name="lead_type">
+      <option value="">— не указан —</option>
+      <option value="agency" <%= salesClient.lead_type === 'agency' ? 'selected' : '' %>>🏢 Агентство</option>
+      <option value="business" <%= salesClient.lead_type === 'business' ? 'selected' : '' %>>🛍 Бизнес</option>
+    </select>
+    <div class="field-grid">
+      <div><label>Контакт</label><input type="text" name="contact_name" value="<%= salesClient.contact_name %>"></div>
+      <div><label>Telegram</label><input type="text" name="contact_telegram" value="<%= salesClient.contact_telegram %>"></div>
+    </div>
+    <div class="field-grid">
+      <div><label>Телефон</label><input type="text" name="contact_phone" value="<%= salesClient.contact_phone %>"></div>
+      <div><label>Email</label><input type="email" name="contact_email" value="<%= salesClient.contact_email %>"></div>
+    </div>
+    <label>Потенциал</label>
+    <input type="text" name="potential_value" value="<%= salesClient.potential_value %>">
+    <label>Заметки</label>
+    <textarea name="notes"><%= salesClient.notes %></textarea>
+    <div style="margin-top:10px;"><button type="submit" class="btn btn-primary">Сохранить</button></div>
+  </form>
+  <div style="font-size:12px; color:var(--text-muted); margin-top:12px;">
+    Последняя активность: <%= fmt.fmtTimestamp(salesClient.last_activity_at) %>
+    <% if (salesClient.next_touch_at) { %> · Следующий контакт: <b style="color:var(--text);"><%= fmt.dueInfo(salesClient.next_touch_at.slice(0, 10), salesClient.next_touch_at.slice(11, 16) || null).label %></b><% } %>
+    <% if (salesClient.hold_reason) { %> · На hold: <%= salesClient.hold_reason %><% } %>
+  </div>
+</div>
+
+<h2>Карточки и действия</h2>
+<div class="card" style="margin-bottom: 20px;">
+  <% if (!tasks.length) { %><div class="empty-state">Пока нет связанных задач.</div><% } %>
+  <% tasks.forEach(t => { %>
+    <div class="list-row<%= t.done ? ' is-done' : '' %>">
+      <span class="title"><a href="/tasks/<%= t.id %>"><%= t.title %></a></span>
+      <span class="lv-muted"><%= t.space_name %> / <%= t.section_name %><%= t.done ? ' · закрыта' : '' %></span>
+    </div>
+    <% if (t.subtasks.length) { %>
+      <ul class="client-actions">
+        <% t.subtasks.forEach(s => { const d = fmt.dueInfo(s.due_date, s.due_time); %>
+          <li class="<%= s.done ? 'is-done' : '' %>"><span class="mini-check"><%= s.done ? '✓' : '' %></span><%= s.title %><% if (d.label) { %> <span class="lv-muted due-<%= s.done ? '' : d.state %>">· <%= d.label %><%- fmt.tzMark(d.tz) %></span><% } %><% if (s.done && s.completed_at) { %> <span class="lv-muted">· выполнено <%= fmt.fmtTimestamp(s.completed_at) %></span><% } %></li>
+        <% }) %>
+      </ul>
+    <% } %>
+  <% }) %>
+</div>
+
+<% if (typeof fullBase !== 'undefined' && fullBase) { %>
+<form method="POST" action="/clients/<%= salesClient.id %>/delete" style="margin-bottom:20px;"
+  onsubmit="return confirm('Удалить клиента «<%= salesClient.name.replace(/'/g, '') %>» из базы? Карточки в Sales останутся, но без привязки к клиенту. Историю контактов вернуть можно будет только из бэкапа.')">
+  <button type="submit" class="btn btn-sm btn-danger">Удалить клиента</button>
+</form>
+<% } %>
+
+<h2>История</h2>
+<div class="card">
+  <% if (!events.length) { %><div class="empty-hint" style="padding:14px;">Пока пусто.</div><% } %>
+  <% events.forEach(e => { %>
+    <div class="comment"><div class="meta"><%= fmt.fmtTimestamp(e.created_at) %><% if (e.author_name) { %> · <%= e.author_name %><% } %></div><div><%= e.body %></div></div>
+  <% }) %>
+</div>
+
+<%- include('partials/layout-end') %>

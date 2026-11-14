@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#16171d">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png?v=2">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PulsAura">
+  <title><%= typeof title !== 'undefined' ? title + ' — PulsAura' : 'PulsAura' %></title>
+  <link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png?v=2"><link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png?v=2">
+  <link rel="stylesheet" href="/css/style.css">
+  <script>window.__USERS = <%- JSON.stringify(typeof allUsers !== 'undefined' ? allUsers : []).replace(/</g, '\\u003c') %>; window.__TZ_LABEL = <%- JSON.stringify(fmt.tzLabel()) %>;
+    // "Now" on the CRM's clock (its time zone), whatever zone the browser is in: its local getters
+    // (getDate, getHours…) return CRM wall-clock values. Used for "Сегодня/Завтра" and overdue checks.
+    window.__TZ_OFFSET = <%- -new Date().getTimezoneOffset() %>;
+    window.crmNow = () => new Date(Date.now() + (window.__TZ_OFFSET + new Date().getTimezoneOffset()) * 60000);
+    // "чт 25.09" for today + offset days on the CRM clock (hints next to Сегодня/Завтра…).
+    window.dayHint = (offset) => { const d = window.crmNow(); d.setDate(d.getDate() + offset); const p = n => String(n).padStart(2, '0'); return ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'][d.getDay()] + ' ' + p(d.getDate()) + '.' + p(d.getMonth() + 1); };
+    window.WEEKDAYS_FULL = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
+    // Inside the Telegram mini app: stop "swipe down = close the app" so dragging rows by ⠿ works.
+    (function () {
+      var inTg = false;
+      try { inTg = sessionStorage.getItem('tg-webapp') === '1'; } catch (e) { /* ignore */ }
+      if (!inTg) return;
+      var s = document.createElement('script');
+      s.src = 'https://telegram.org/js/telegram-web-app.js';
+      s.onload = function () {
+        var tg = window.Telegram && window.Telegram.WebApp;
+        if (!tg) return;
+        tg.ready();
+        tg.expand();
+        if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+      };
+      document.head.appendChild(s);
+    })();</script>
+</head>
+<body>
+<%
+  const nav = typeof activeNav !== 'undefined' ? activeNav : '';
+  const spaces = typeof navSpaces !== 'undefined' ? navSpaces : [];
+%>
+  <div class="app">
+    <header class="mobile-topbar">
+      <button type="button" class="icon-btn nav-toggle" id="navToggle" aria-label="Меню" aria-controls="sidebar" aria-expanded="false">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4h11M2.5 8h11M2.5 12h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+      <span class="mobile-title"><%= typeof title !== 'undefined' ? title : 'PulsAura' %></span>
+    </header>
+    <div class="nav-backdrop" id="navBackdrop"></div>
+    <div class="sidebar" id="sidebar">
+      <% const curWs = typeof ws !== 'undefined' ? ws : null; const wsList = typeof myWorkspaces !== 'undefined' ? myWorkspaces : []; %>
+      <details class="ws-switch">
+        <summary class="brand" title="Переключить workspace">
+          <span class="ws-name"><%= curWs ? (curWs.icon ? curWs.icon + ' ' : '') + curWs.name : 'PulsAura' %></span>
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 6.5L8 10l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </summary>
+        <div class="ws-menu">
+          <% if (!user.is_external) { %>
+          <form method="POST" action="/workspaces/switch"><input type="hidden" name="ws" value="team">
+            <button type="submit" class="<%= curWs ? '' : 'is-current' %>">PulsAura <span class="lv-muted">· команда</span></button></form>
+          <% } %>
+          <% wsList.forEach(w => { %>
+            <form method="POST" action="/workspaces/switch"><input type="hidden" name="ws" value="<%= w.id %>">
+              <button type="submit" class="<%= curWs && curWs.id === w.id ? 'is-current' : '' %>"><%= w.icon %> <%= w.name %> <span class="lv-muted">· <%= w.my_role === 'owner' ? 'мой' : 'участник' %></span></button></form>
+          <% }) %>
+          <% if (curWs) { %><a href="/workspaces/<%= curWs.id %>" class="ws-menu-link">⚙ Настройки «<%= curWs.name %>»</a><% } %>
+          <form method="POST" action="/workspaces" class="ws-new">
+            <input type="text" name="name" placeholder="Новый workspace, например Life" maxlength="60" required aria-label="Название нового workspace">
+            <button type="submit" class="btn btn-sm">+ Создать</button>
+          </form>
+          <p class="ws-hint">Личный workspace видите вы и те, кого пригласите.</p>
+        </div>
+      </details>
+      <nav>
+        <a href="/" class="<%= nav === 'dashboard' ? 'active' : '' %>">🏠 Главная</a>
+
+        <div class="nav-section-label">Пространства</div>
+        <% spaces.forEach(s => { %>
+          <a href="/spaces/<%= s.id %>" class="<%= nav === 'space-' + s.id ? 'active' : '' %>"><%= s.icon %> <%= s.name %></a>
+        <% }) %>
+        <% if (curWs ? curWs.my_role === 'owner' : user.is_owner) { %>
+          <a href="/spaces" class="<%= nav === 'spaces' ? 'active' : '' %>" style="color: rgba(182,187,224,0.6); font-size:12px;">+ Пространство</a>
+        <% } %>
+
+        <% if (!curWs && !user.is_external) { %>
+        <div class="nav-section-label">Команда</div>
+        <a href="/feed/general" class="<%= nav === 'feed' ? 'active' : '' %>">💬 Общий фид</a>
+        <% if (typeof clientsNav !== 'undefined' && clientsNav) { %>
+        <a href="/clients" class="<%= nav === 'clients' ? 'active' : '' %>">📇 <%= clientsNav %></a>
+        <% } %>
+        <% if (user.is_owner) { %>
+        <a href="/users" class="<%= nav === 'users' ? 'active' : '' %>">👥 Команда</a>
+        <% } %>
+        <% } else { %>
+        <div class="nav-section-label">Разное</div>
+        <% } %>
+        <a href="/trash" class="<%= nav === 'trash' ? 'active' : '' %>">🗑 Корзина</a>
+        <a href="/profile" class="<%= nav === 'profile' ? 'active' : '' %>">⚙️ Профиль</a>
+      </nav>
+      <div class="user-box">
+        <div class="tz-note" title="Все сроки и напоминания считаются по этому часовому поясу">🕒 Время в CRM: <%= fmt.tzLabel() %></div>
+        <div><%= user.name %></div>
+        <form method="POST" action="/logout"><button type="submit">Выйти</button></form>
+      </div>
+    </div>
+    <div class="main <%= typeof mainClass !== 'undefined' ? mainClass : '' %>">

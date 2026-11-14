@@ -1,0 +1,13 @@
+<%# One-tap contact buttons for a client. Locals: c (client row) %>
+<%
+  const tg = c.contact_telegram ? String(c.contact_telegram).trim().replace(/^https?:\/\/t\.me\//, '').replace(/^@/, '') : '';
+  const phone = fmt.phoneDigits(c.contact_phone);
+%>
+<% if (tg || phone || c.contact_email) { %>
+<div class="contact-links">
+  <% if (phone) { %><a class="btn btn-sm" href="tel:+<%= phone %>">📞 Позвонить</a><% } %>
+  <% if (tg) { %><a class="btn btn-sm" href="https://t.me/<%= encodeURIComponent(tg) %>" target="_blank" rel="noopener">✈️ Telegram</a><% } %>
+  <% if (phone) { %><a class="btn btn-sm" href="https://wa.me/<%= phone %>" target="_blank" rel="noopener">💬 WhatsApp</a><% } %>
+  <% if (c.contact_email) { %><a class="btn btn-sm" href="mailto:<%= c.contact_email %>">✉️ Письмо</a><% } %>
+</div>
+<% } %>

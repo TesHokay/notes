@@ -1,0 +1,172 @@
+<%
+const qs = (overrides) => {
+  const p = new URLSearchParams();
+  const merged = Object.assign({ view: view === 'board' ? '' : view, project: filters.projectId || '', assignee: filters.assigneeId || '', completed: filters.completed ? '1' : '', type: filters.leadType || '', month: view === 'calendar' ? month : '' }, overrides);
+  Object.entries(merged).forEach(([k, v]) => { if (v) p.set(k, v); });
+  const s = p.toString();
+  return s ? '?' + s : location_path;
+};
+const location_path = '/spaces/' + space.id;
+const cardMode = space.card_mode;
+const hasFilter = filters.projectId || filters.assigneeId || filters.leadType;
+%>
+<%- include('partials/layout-start') %>
+
+<header class="page-header">
+  <div class="page-title-row">
+    <h1 class="page-title"><span class="page-icon"><%= space.icon %></span><%= space.name %></h1>
+    <nav class="view-tabs" aria-label="Вид">
+      <a href="<%= qs({ view: '' , month: '' }) %>" class="<%= view === 'board' ? 'active' : '' %>">Доска</a>
+      <a href="<%= qs({ view: 'list', month: '' }) %>" class="<%= view === 'list' ? 'active' : '' %>">Список</a>
+      <a href="<%= qs({ view: 'calendar' }) %>" class="<%= view === 'calendar' ? 'active' : '' %>">Календарь</a>
+    </nav>
+    <span class="tc-spacer"></span>
+    <% if (canManage && cardMode === 'client') { %><a href="/spaces/<%= space.id %>/import" class="btn btn-sm btn-ghost" title="Загрузить клиентов из Excel">⬆ Импорт из Excel</a><% } %>
+    <% if (canManage) { %><a href="/spaces/<%= space.id %>/settings" class="btn btn-sm btn-ghost" title="Настройки пространства">
+      <svg viewBox="0 0 16 16" aria-hidden="true" class="btn-icon"><circle cx="8" cy="8" r="2.2" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 1.8v1.8M8 12.4v1.8M1.8 8h1.8M12.4 8h1.8M3.6 3.6l1.3 1.3M11.1 11.1l1.3 1.3M3.6 12.4l1.3-1.3M11.1 4.9l1.3-1.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      Настройки</a><% } %>
+  </div>
+  <div class="toolbar">
+    <% if (cardMode !== 'client' || projects.length) { %>
+    <select class="toolbar-select" data-filter="project" aria-label="Фильтр по проекту">
+      <option value="">Все проекты</option>
+      <% projects.forEach(p => { %><option value="<%= p.id %>" <%= filters.projectId === p.id ? 'selected' : '' %>><%= p.name %></option><% }) %>
+    </select>
+    <% } %>
+    <select class="toolbar-select" data-filter="assignee" aria-label="Фильтр по исполнителю">
+      <option value="">Все исполнители</option>
+      <% users.forEach(u => { %><option value="<%= u.id %>" <%= filters.assigneeId === u.id ? 'selected' : '' %>><%= u.name %></option><% }) %>
+    </select>
+    <% if (cardMode === 'client') { %>
+    <div class="segmented" role="group" aria-label="Тип лида" data-lead-type-filter>
+      <a href="<%= qs({ type: '' }) %>" class="<%= filters.leadType ? '' : 'active' %>">Все</a>
+      <a href="<%= qs({ type: 'agency' }) %>" class="<%= filters.leadType === 'agency' ? 'active' : '' %>">🏢 Агентства</a>
+      <a href="<%= qs({ type: 'business' }) %>" class="<%= filters.leadType === 'business' ? 'active' : '' %>">🛍 Бизнесы</a>
+      <a href="<%= qs({ type: 'none' }) %>" class="<%= filters.leadType === 'none' ? 'active' : '' %>" title="Тип ещё не указан">?</a>
+    </div>
+    <% } %>
+    <div class="segmented" role="group" aria-label="Статус задач">
+      <a href="<%= qs({ completed: '' }) %>" class="<%= filters.completed ? '' : 'active' %>">Активные</a>
+      <a href="<%= qs({ completed: '1' }) %>" class="<%= filters.completed ? 'active' : '' %>">Выполненные</a>
+    </div>
+    <% if (hasFilter) { %><a href="<%= qs({ project: '', assignee: '', type: '' }) %>" class="btn btn-sm btn-ghost">Сбросить</a><% } %>
+    <% if (view !== 'calendar') { %>
+    <input type="search" class="toolbar-search" id="boardSearch" placeholder="🔍 Поиск по <%= cardMode === 'client' ? 'клиентам' : 'задачам' %>" aria-label="Поиск" autocomplete="off">
+    <% if (canManage && !filters.completed) { %><button type="button" class="btn btn-sm btn-ghost" id="bulkToggle" title="Выбрать несколько карточек и перенести / назначить разом">☑ Выбрать</button><% } %>
+    <% } %>
+  </div>
+</header>
+
+<% if (view === 'list') { %>
+
+<% if (cardMode === 'client') { %>
+<div class="list-view lv-client card">
+  <div class="lv-head"><span></span><span>Клиент</span><span>Следующее действие</span><span>След. контакт</span><span>Ответственный</span><span>Этап</span><span>Активность</span></div>
+  <% const rows = filters.completed ? tasks : tasks.slice().sort((a, b) => {
+       const ka = a.client_next_touch_at || (a.activeSubtasks[0] && a.activeSubtasks[0].due_date) || '9999';
+       const kb = b.client_next_touch_at || (b.activeSubtasks[0] && b.activeSubtasks[0].due_date) || '9999';
+       return ka.localeCompare(kb);
+     }); %>
+  <% rows.forEach(t => { const next = t.activeSubtasks[0]; const nd = next ? fmt.dueInfo(next.due_date, next.due_time) : null; const touch = fmt.dueInfo(t.client_next_touch_at, null); %>
+    <div class="lv-row<%= t.done ? ' is-done' : '' %>" data-task-id="<%= t.id %>"<%= canManage ? ' data-selectable' : '' %>><% if (canManage) { %><span class="bulk-check" aria-hidden="true"></span><% } %>
+      <button type="button" class="check-circle" data-toggle-done="<%= t.id %>" data-done="<%= t.done %>" aria-label="<%= t.done ? 'Вернуть в работу' : 'Закрыть карточку' %>"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 8.2l2.6 2.6L12 5.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <a href="?task=<%= t.id %>" class="lv-title drawer-link" data-task-id="<%= t.id %>"><%= fmt.dealTitle(t.client_name, t.title) %><%- include('partials/lead-type-badge', { type: t.client_lead_type }) %><% if (t.client_contact) { %> <span class="lv-sub"><%= t.client_contact %></span><% } %></a>
+      <span class="lv-next"><% if (next) { %><a href="?task=<%= t.id %>" class="drawer-link" data-task-id="<%= t.id %>" data-focus-subtask="<%= next.id %>"><%= next.title %></a><% if (nd.label) { %> <span class="due-<%= nd.state %>">· <%= nd.label %><%- fmt.tzMark(nd.tz) %></span><% } %><% if (t.activeSubtasks.length > 1) { %> <span class="lv-muted">+<%= t.activeSubtasks.length - 1 %></span><% } %><% } else { %><span class="lv-muted">нет действий</span><% } %></span>
+      <span class="due-<%= touch.state %>"><%= touch.label || '—' %></span>
+      <span class="lv-qp"><%- include('partials/qp', { kind: 'task', id: t.id, taskId: t.id, date: t.due_date, time: t.due_time, people: t.assignees, canEdit: canManage, showName: true, which: 'assignee' }) %></span>
+      <span><span class="pill"><%= t.section_name %></span></span>
+      <span class="lv-muted"><%= fmt.fmtTimestamp(t.client_last_activity) %></span>
+    </div>
+  <% }) %>
+  <% if (!tasks.length) { %><div class="empty-state"><%= filters.completed ? 'Закрытых карточек пока нет.' : 'Клиентов в воронке нет.' %></div><% } %>
+</div>
+<% } else { %>
+<div class="list-view card">
+  <div class="lv-head"><span></span><span>Задача</span><span><%= cardMode === 'client' ? 'Сайт' : 'Проект' %></span><span>Исполнители</span><span><%= cardMode === 'client' ? 'Этап' : 'Статус' %></span><span>Срок</span></div>
+  <% const listTasks = filters.completed ? tasks : tasks.slice().sort((a, b) => ((a.due_date || '9999') + (a.due_time || '99')).localeCompare((b.due_date || '9999') + (b.due_time || '99'))); %>
+  <% listTasks.forEach(t => { const d = fmt.dueInfo(t.due_date, t.due_time); %>
+    <div class="lv-row<%= t.done ? ' is-done' : '' %>" data-task-id="<%= t.id %>"<%= canManage ? ' data-selectable' : '' %>><% if (canManage) { %><span class="bulk-check" aria-hidden="true"></span><% } %>
+      <button type="button" class="check-circle" data-toggle-done="<%= t.id %>" data-done="<%= t.done %>" aria-label="<%= t.done ? 'Вернуть в работу' : 'Отметить выполненной' %>"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 8.2l2.6 2.6L12 5.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <a href="?task=<%= t.id %>" class="lv-title drawer-link" data-task-id="<%= t.id %>"><% if (t.kind === 'meeting') { %>📞 <% } %><%= cardMode === 'client' ? fmt.dealTitle(t.client_name, t.title) : t.title %><% if (t.subtask_count) { %> <span class="lv-sub">✓ <%= t.subtask_done %>/<%= t.subtask_count %></span><% } %></a>
+      <span class="lv-muted"><%= (cardMode === 'client' ? t.client_website : t.project_name) || '—' %></span>
+      <span class="lv-qp"><%- include('partials/qp', { kind: 'task', id: t.id, taskId: t.id, date: t.due_date, time: t.due_time, people: t.assignees, canEdit: canManage, showName: true, which: 'assignee' }) %></span>
+      <span><span class="pill"><%= t.section_name %></span></span>
+      <span class="lv-qp"><%- include('partials/qp', { kind: 'task', id: t.id, taskId: t.id, date: t.due_date, time: t.due_time, people: t.assignees, canEdit: canManage, showName: false, which: 'due' }) %></span>
+    </div>
+  <% }) %>
+  <% if (!tasks.length) { %><div class="empty-state"><%= filters.completed ? 'Выполненных задач пока нет.' : 'Активных задач нет.' %></div><% } %>
+</div>
+<% } %>
+
+<% } else if (view === 'calendar') { %>
+
+<%
+  // Each account/project gets its own colour in the calendar (stable: by id).
+  const accClass = id => id ? `acc-${id % 8}` : 'acc-none';
+  const firstSectionId = board.length ? board[0].id : null;
+%>
+<div class="calendar card" id="calendar" data-space-id="<%= space.id %>" data-section-id="<%= firstSectionId || '' %>"
+  data-can-create="<%= canCreate && firstSectionId ? '1' : '0' %>" data-can-manage="<%= canManage ? '1' : '0' %>"
+  data-projects="<%= JSON.stringify(projects) %>" data-project-filter="<%= filters.projectId || '' %>">
+  <div class="cal-head">
+    <a class="icon-btn" href="<%= qs({ month: calendar.prev }) %>" aria-label="Предыдущий месяц">‹</a>
+    <h2 class="cal-title"><%= calendar.title %></h2>
+    <a class="icon-btn" href="<%= qs({ month: calendar.next }) %>" aria-label="Следующий месяц">›</a>
+    <a class="btn btn-sm btn-ghost" href="<%= qs({ month: '' }) %>">Сегодня</a>
+    <span class="tc-spacer"></span>
+    <% if (calendar.undated) { %><span class="lv-muted"><%= calendar.undated %> без срока — во вкладке «Список»</span><% } %>
+  </div>
+  <div class="cal-grid">
+    <% ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(d => { %><div class="cal-dow"><%= d %></div><% }) %>
+    <% calendar.days.forEach(day => { %>
+      <div class="cal-day<%= day.inMonth ? '' : ' is-out' %><%= day.iso === today ? ' is-today' : '' %>" data-date="<%= day.iso %>">
+        <div class="cal-num"><span class="cal-n"><%= day.day %></span>
+          <% if (canCreate && firstSectionId && !filters.completed) { %><button type="button" class="cal-add" data-cal-add="<%= day.iso %>" title="Добавить на <%= fmt.dayTitle(day.iso) %>" aria-label="Добавить на <%= fmt.dayTitle(day.iso) %>">+</button><% } %>
+        </div>
+        <% day.tasks.forEach(t => { const d = fmt.dueInfo(t.due_date, t.due_time); %>
+          <%# div, not <a>: it holds the people button (quick picker) — clicking it must not open the task %>
+          <div role="link" tabindex="0" class="cal-task drawer-link <%= accClass(t.project_id) %> due-<%= d.state %><%= t.done ? ' is-done' : '' %>" data-task-id="<%= t.id %>"
+            <%= canManage ? 'draggable=true' : '' %> title="<%= t.title %><%= t.project_name ? ' — ' + t.project_name : '' %><%= t.assignees.length ? ' · ' + t.assignees.map(p => p.name).join(', ') : '' %>">
+            <span class="cal-line">
+              <% if (t.kind === 'meeting') { %>📞 <% } %><% if (t.due_time) { %><span class="cal-time"><%= t.due_time %></span><% } %><span class="cal-text"><%= cardMode === 'client' ? fmt.dealTitle(t.client_name, t.title) : t.title %></span>
+            </span>
+            <span class="cal-meta">
+              <% if (t.project_name) { %><span class="cal-acc"><%= t.project_name %></span><% } %>
+              <span class="cal-who"><%- include('partials/qp', { kind: 'task', id: t.id, taskId: t.id, date: t.due_date, time: t.due_time, people: t.assignees, canEdit: canManage, showName: false, which: 'assignee' }) %></span>
+            </span>
+          </div>
+        <% }) %>
+      </div>
+    <% }) %>
+  </div>
+</div>
+
+<% } else { %>
+
+<div class="board<%= filters.completed ? ' is-readonly' : '' %>" id="board" data-space-id="<%= space.id %>" data-card-mode="<%= cardMode %>" data-completed-view="<%= filters.completed ? '1' : '0' %>">
+  <% board.forEach(section => { %><%- include('partials/board-column', { section, cardMode, canManage, canCreate }) %><% }) %>
+  <% if (canManage && !filters.completed) { %>
+  <div class="add-column">
+    <button type="button" class="add-column-btn" id="addSectionBtn">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Добавить колонку
+    </button>
+    <form id="addSectionForm" class="quick-add-form" hidden>
+      <input type="text" name="name" placeholder="Название колонки" autocomplete="off" aria-label="Название колонки">
+    </form>
+  </div>
+  <% } %>
+</div>
+
+<% } %>
+
+<%- include('partials/drawer') %>
+
+<script src="/js/api.js"></script>
+<script src="/js/task.js"></script>
+<script src="/js/quick-pickers.js"></script>
+<script src="/js/board-dnd.js"></script>
+<script src="/js/board.js"></script>
+<script src="/js/drawer.js"></script>
+<% if (view === 'calendar') { %><script src="/js/calendar.js"></script><% } else { %><script src="/js/bulk.js"></script><% } %>
+<%- include('partials/layout-end') %>

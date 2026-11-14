@@ -1,0 +1,75 @@
+<%- include('partials/layout-start') %>
+
+<h1>Профиль</h1>
+<p class="subtitle"><%= profileUser.name %> · <%= profileUser.email %> · <%= profileUser.is_owner ? 'владелец' : 'участник' %></p>
+
+<div class="card" style="padding: 16px; max-width: 480px; margin-bottom:16px;">
+  <h2>Мои пространства</h2>
+  <% if (!mySpaces.length) { %>
+    <p class="empty-hint">Вас пока никуда не добавили — попросите владельца добавить вас в нужное пространство.</p>
+  <% } else { %>
+    <% mySpaces.forEach(s => { %>
+      <div class="list-row">
+        <span class="title"><a href="/spaces/<%= s.id %>"><%= s.icon %> <%= s.name %></a></span>
+        <span class="badge role-member"><%= s.role === 'manager' ? 'менеджер' : s.role === 'guest' ? 'гость' : 'участник' %></span>
+      </div>
+    <% }) %>
+  <% } %>
+</div>
+
+<div class="card" style="padding: 16px; max-width: 480px;">
+  <h2>Уведомления в Telegram</h2>
+
+  <% if (profileUser.telegram_chat_id) { %>
+    <p><span class="badge tg-on">Подключено</span></p>
+    <p class="subtitle">Уведомления о новых задачах, дедлайнах и комментариях приходят вам в Telegram.</p>
+    <form method="POST" action="/profile/telegram/unlink" onsubmit="return confirm('Отключить уведомления в Telegram?')">
+      <button type="submit" class="btn btn-sm">Отключить</button>
+    </form>
+  <% } else if (profileUser.telegram_link_code) { %>
+    <p class="subtitle">Откройте бота и отправьте команду ниже (или нажмите кнопку), чтобы завершить привязку:</p>
+    <% if (botUsername) { %>
+      <p><a class="btn btn-primary" href="https://t.me/<%= botUsername %>?start=<%= profileUser.telegram_link_code %>" target="_blank">Открыть в Telegram</a></p>
+    <% } else { %>
+      <p class="hint-box">Код: <code><%= profileUser.telegram_link_code %></code> — отправьте боту <code>/start <%= profileUser.telegram_link_code %></code></p>
+    <% } %>
+    <form method="POST" action="/profile/telegram/link-code">
+      <button type="submit" class="btn btn-sm">Сгенерировать новый код</button>
+    </form>
+  <% } else { %>
+    <p class="subtitle">Пока не подключено. Нажмите кнопку, чтобы получить ссылку для привязки Telegram-аккаунта.</p>
+    <form method="POST" action="/profile/telegram/link-code">
+      <button type="submit" class="btn btn-primary">Подключить Telegram</button>
+    </form>
+  <% } %>
+</div>
+
+<div class="card" style="padding: 16px; max-width: 480px; margin-top:16px;">
+  <h2>Имя и email</h2>
+  <% if (infoMessage === 'ok') { %><div class="hint-box">Сохранено.</div><% } %>
+  <% if (infoMessage === 'invalid') { %><div class="error-box">Укажите имя и корректный email.</div><% } %>
+  <% if (infoMessage === 'taken') { %><div class="error-box">Этот email уже занят другим участником.</div><% } %>
+  <form method="POST" action="/profile/info">
+    <label>Имя (его видит команда)</label>
+    <input type="text" name="name" value="<%= profileUser.name %>" maxlength="80" required autocomplete="name">
+    <label>Email (логин для входа)</label>
+    <input type="email" name="email" value="<%= profileUser.email %>" required autocomplete="email">
+    <div style="margin-top:12px;"><button type="submit" class="btn btn-primary">Сохранить</button></div>
+  </form>
+</div>
+
+<div class="card" style="padding: 16px; max-width: 480px; margin-top:16px;">
+  <h2>Сменить пароль</h2>
+  <% if (pwMessage === 'ok') { %><div class="hint-box">Пароль изменён.</div><% } %>
+  <% if (pwMessage === 'wrong') { %><div class="error-box">Текущий пароль неверный.</div><% } %>
+  <% if (pwMessage === 'short') { %><div class="error-box">Новый пароль — минимум 8 символов.</div><% } %>
+  <form method="POST" action="/profile/password">
+    <label>Текущий пароль</label>
+    <input type="password" name="current_password" required autocomplete="current-password">
+    <label>Новый пароль (мин. 8 символов)</label>
+    <input type="password" name="new_password" minlength="8" required autocomplete="new-password">
+    <div style="margin-top:12px;"><button type="submit" class="btn btn-primary">Сменить</button></div>
+  </form>
+</div>
+
+<%- include('partials/layout-end') %>

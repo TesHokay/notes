@@ -1,0 +1,17 @@
+<%# Owner counters on Home (PulsAura). Locals: team { todayCount, overdueCount, unassignedCount, perPerson } %>
+<div class="stats-row" id="homeStats">
+  <a class="stat stat-link" href="/overview?f=today" title="Все задачи команды на сегодня"><div class="stat-num"><%= team.todayCount %></div><div class="stat-label">на сегодня</div></a>
+  <a class="stat stat-link" href="/overview?f=overdue" title="Все просроченные задачи команды"><div class="stat-num is-danger"><%= team.overdueCount %></div><div class="stat-label">просрочено</div></a>
+  <a class="stat stat-link" href="/overview?f=unassigned" title="Карточки, на которых никого нет"><div class="stat-num"><%= team.unassignedCount %></div><div class="stat-label">без исполнителя</div></a>
+  <a class="btn btn-sm btn-ghost" href="/overview">📊 Сводка команды</a>
+  <% if (team.perPerson.length) { %>
+  <details class="popover stat-team">
+    <summary class="btn btn-sm btn-ghost">Загрузка команды</summary>
+    <div class="popover-body">
+      <% team.perPerson.forEach(p => { %>
+        <a href="/team/<%= p.id %>" class="pick-row"><span class="avatar avatar-xs"><%= fmt.initials(p.name) %></span><%= p.name %><span class="tc-spacer"></span><% if (p.overdue) { %><span class="due-overdue" title="просрочено"><%= p.overdue %>⚠</span>&nbsp;<% } %><span class="lv-muted"><%= p.open_tasks %></span></a>
+      <% }) %>
+    </div>
+  </details>
+  <% } %>
+</div>

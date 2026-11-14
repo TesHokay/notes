@@ -1,0 +1,163 @@
+<%- include('partials/layout-start') %>
+
+<p class="subtitle"><a href="/spaces/<%= space.id %>">← <%= space.icon %> <%= space.name %></a></p>
+<h1>Настройки — <%= space.name %></h1>
+
+<% if (msg === 'renamed') { %><div class="hint-box">Сохранено.</div><% } %>
+<% if (msg === 'noname') { %><div class="error-box">Название не может быть пустым.</div><% } %>
+<% if (msg === 'confirm') { %><div class="error-box">Пространство не удалено: название для подтверждения введено неточно.</div><% } %>
+
+<div class="card" style="padding: 16px; margin-bottom: 20px; max-width: 480px;">
+  <h2>Название и значок</h2>
+  <form method="POST" action="/spaces/<%= space.id %>/rename" style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap;">
+    <div style="width:72px;">
+      <label>Значок</label>
+      <input type="text" name="icon" value="<%= space.icon %>" maxlength="8" placeholder="🙂" aria-label="Значок (смайлик), можно оставить пустым">
+    </div>
+    <div style="flex:1; min-width:180px;">
+      <label>Название</label>
+      <input type="text" name="name" value="<%= space.name %>" maxlength="80" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Сохранить</button>
+  </form>
+  <p class="subtitle" style="margin-top:8px;">Значок — любой смайлик (Win + . на Windows) или пусто.</p>
+</div>
+
+<% if (personal) { %>
+<div class="hint-box" style="max-width:480px; margin-bottom:20px;">Это пространство в вашем личном workspace — его видите только вы, поэтому участников и видимости здесь нет.</div>
+<% } else { %>
+<div class="card" style="padding: 16px; margin-bottom: 20px; max-width: 480px;">
+  <h2>Видимость задач</h2>
+  <form id="visibilityForm">
+    <select id="visibilitySelect">
+      <option value="all_members" <%= space.task_visibility === 'all_members' ? 'selected' : '' %>>Все участники видят все задачи</option>
+      <option value="assignees_and_managers" <%= space.task_visibility === 'assignees_and_managers' ? 'selected' : '' %>>Каждый видит только своё, менеджеры — всё</option>
+    </select>
+  </form>
+  <p class="subtitle" style="margin:8px 0 0;">Касается участников. Менеджеры и владельцы всегда видят всё, гости — только своё.</p>
+</div>
+
+<h2>Участники пространства</h2>
+<div class="hint-box" style="margin-bottom:12px; max-width:720px; line-height:1.5;">
+  <b>Менеджер</b> — видит все задачи, создаёт и меняет их, добавляет людей и меняет настройки пространства.<br>
+  <b>Участник</b> — создаёт и ведёт задачи. Видит все задачи пространства или только свои — зависит от «Видимости задач» выше.<br>
+  <b>Гость</b> — видит только задачи, где он исполнитель, и не может создавать новые. Для подрядчиков и фрилансеров.<br>
+  <span style="color:var(--text-muted);">Владельцы видят всё и без роли.</span>
+</div>
+<div class="card" style="margin-bottom: 16px;">
+  <% owners.forEach(o => { %>
+    <div class="list-row">
+      <span class="avatar"><%= fmt.initials(o.name) %></span>
+      <span class="title"><%= o.name %></span>
+      <span class="lv-muted">Владелец — видит всё</span>
+    </div>
+  <% }) %>
+  <% if (!members.length) { %>
+    <div class="list-row"><span class="lv-muted">Других участников пока нет — добавьте ниже.</span></div>
+  <% } %>
+  <% members.forEach(m => { %>
+    <div class="list-row">
+      <span class="avatar"><%= (m.name || '?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase() %></span>
+      <span class="title"><%= m.name %></span>
+      <form method="POST" action="/spaces/<%= space.id %>/members/<%= m.id %>/role">
+        <select name="role" onchange="this.form.submit()">
+          <option value="manager" <%= m.role === 'manager' ? 'selected' : '' %>>Менеджер — видит всё, управляет</option>
+          <option value="member" <%= m.role === 'member' ? 'selected' : '' %>>Участник — работает в пространстве</option>
+          <option value="guest" <%= m.role === 'guest' ? 'selected' : '' %>>Гость — только свои задачи</option>
+        </select>
+      </form>
+      <form method="POST" action="/spaces/<%= space.id %>/members/<%= m.id %>/remove" onsubmit="return confirm('Убрать <%= m.name %> из пространства?')">
+        <button type="submit" class="btn btn-sm btn-danger">Убрать</button>
+      </form>
+    </div>
+  <% }) %>
+</div>
+
+<div class="card" style="padding: 16px; max-width: 420px; margin-bottom: 24px;">
+  <h2>Добавить участника</h2>
+  <form method="POST" action="/spaces/<%= space.id %>/members">
+    <% if (!otherUsers.length) { %>
+      <p class="subtitle" style="margin:0;">Все обычные аккаунты уже здесь. Новых людей добавляйте в разделе «Команда».</p>
+    <% } else { %>
+    <label>Пользователь</label>
+    <select name="user_id" required>
+      <option value="" selected disabled>Кого добавить…</option>
+      <% otherUsers.forEach(u => { %><option value="<%= u.id %>"><%= u.name %> (<%= u.email %>)</option><% }) %>
+    </select>
+    <label>Роль</label>
+    <select name="role">
+      <option value="member">Участник — работает в пространстве</option>
+      <option value="manager">Менеджер — видит всё, управляет</option>
+      <option value="guest">Гость — только свои задачи</option>
+    </select>
+    <div style="margin-top:12px;"><button type="submit" class="btn btn-primary">Добавить</button></div>
+    <% } %>
+  </form>
+</div>
+<% } %>
+
+<h2 id="projects">Проекты / аккаунты</h2>
+<p class="subtitle">Ярлык на задаче и фильтр на доске и в календаре (в контент-плане — аккаунты). «Ответственные по умолчанию» получает новая задача этого аккаунта, если ответственных не выбрали вручную.</p>
+<div class="card" style="margin-bottom: 16px;">
+  <% if (!projects.length) { %><div class="empty-hint" style="padding:14px;">Пока пусто.</div><% } %>
+  <% projects.forEach(p => { %>
+    <div class="proj-row">
+      <div class="proj-top">
+        <span class="cal-acc-dot acc-<%= p.id % 8 %>"></span>
+        <form method="POST" action="/spaces/<%= space.id %>/projects/<%= p.id %>/rename" class="proj-rename">
+          <input type="text" name="name" value="<%= p.name %>" maxlength="80" required aria-label="Название">
+          <button type="submit" class="btn btn-sm">Переименовать</button>
+        </form>
+        <span class="lv-muted" style="font-size:12px; white-space:nowrap;"><%= p.task_count %> задач</span>
+        <form method="POST" action="/spaces/<%= space.id %>/projects/<%= p.id %>/delete" onsubmit="return confirm('Удалить «<%= p.name.replace(/'/g, '') %>»? Задачи останутся, просто без этой метки.')">
+          <button type="submit" class="btn btn-sm btn-danger">Удалить</button>
+        </form>
+      </div>
+      <form method="POST" action="/spaces/<%= space.id %>/projects/<%= p.id %>/people" class="proj-people">
+        <span class="lv-muted" style="font-size:12px;">Ответственные по умолчанию:</span>
+        <% assignable.forEach(u => { %>
+          <label class="proj-person"><input type="checkbox" name="user_ids" value="<%= u.id %>" <%= p.people_ids.includes(u.id) ? 'checked' : '' %> onchange="this.form.submit()"><%= u.name %></label>
+        <% }) %>
+      </form>
+    </div>
+  <% }) %>
+</div>
+
+<div class="card" style="padding: 16px; max-width: 420px;">
+  <h2>Новый проект / аккаунт</h2>
+  <form method="POST" action="/spaces/<%= space.id %>/projects">
+    <label>Название</label>
+    <input type="text" name="name" required>
+    <label>Клиент (необязательно)</label>
+    <select name="client_id">
+      <option value="">Без клиента</option>
+      <% clients.forEach(c => { %><option value="<%= c.id %>"><%= c.name %></option><% }) %>
+    </select>
+    <div style="margin-top:12px;"><button type="submit" class="btn btn-primary">Создать</button></div>
+  </form>
+</div>
+
+<% if (canDelete) { %>
+<div class="card" style="padding: 16px; max-width: 480px; margin-top: 32px; border-color: var(--danger, #e5484d);">
+  <h2>Удалить пространство</h2>
+  <p class="subtitle">Удалятся все колонки и карточки этого пространства (сейчас их <%= taskCount %>) вместе с подзадачами и комментариями. Клиенты и люди останутся. Перед удалением автоматически сохраняется копия базы.</p>
+  <form method="POST" action="/spaces/<%= space.id %>/delete" onsubmit="return confirm('Точно удалить пространство «<%= space.name %>»?')">
+    <label>Для подтверждения впишите название: <b><%= space.name %></b></label>
+    <input type="text" name="confirm_name" required autocomplete="off">
+    <div style="margin-top:12px;"><button type="submit" class="btn btn-danger">Удалить пространство</button></div>
+  </form>
+</div>
+<% } %>
+
+<script>
+const visibilitySelect = document.getElementById('visibilitySelect');
+if (visibilitySelect) visibilitySelect.addEventListener('change', async (e) => {
+  await fetch('/spaces/<%= space.id %>/visibility', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ task_visibility: e.target.value }),
+  });
+});
+</script>
+
+<%- include('partials/layout-end') %>

@@ -1,0 +1,25 @@
+<%#
+  Quick pickers (Asana-style): due date + assignee buttons.
+  Locals: kind ('task'|'subtask'), id, taskId, date, time, people ([{id,name}]), canEdit, showName, which ('both'|'due'|'assignee')
+%>
+<%
+  const w = typeof which === 'undefined' ? 'both' : which;
+  const d = fmt.dueInfo(date, time);
+  const ids = people.map(p => p.id).join(',');
+  const dis = canEdit ? '' : 'disabled';
+%>
+<% if (w !== 'assignee') { %>
+<button type="button" class="qp-btn qp-due<%= date ? ' is-set due-' + d.state : '' %>" data-qp="due" data-kind="<%= kind %>" data-id="<%= id %>" data-task-id="<%= taskId %>" data-date="<%= date || '' %>" data-time="<%= time || '' %>" title="<%= date ? 'Срок: ' + d.full : 'Назначить срок' %>" aria-label="<%= date ? 'Срок: ' + d.full : 'Назначить срок' %>" <%= dis %>>
+  <% if (date) { %><%= d.label %><%- fmt.tzMark(d.tz) %><% } else { %><span class="qp-empty"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="4" width="10" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M3 7h10M6 2.5v3M10 2.5v3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span><% } %>
+</button>
+<% } %>
+<% if (w !== 'due') { %>
+<button type="button" class="qp-btn qp-assignee<%= people.length ? ' is-set' : '' %>" data-qp="assignee" data-kind="<%= kind %>" data-id="<%= id %>" data-task-id="<%= taskId %>" data-assignees="<%= ids %>" title="<%= people.length ? people.map(p => p.name).join(', ') : 'Назначить исполнителя' %>" aria-label="<%= people.length ? 'Исполнитель: ' + people.map(p => p.name).join(', ') : 'Назначить исполнителя' %>" <%= dis %>>
+  <% if (!people.length) { %>
+    <span class="qp-empty"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="6" r="2.4" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M3.8 12.5c.7-2 2.3-3 4.2-3s3.5 1 4.2 3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span>
+  <% } else { %>
+    <span class="qp-avatars"><% people.slice(0, 3).forEach(p => { %><span class="avatar<%= kind === 'subtask' ? ' avatar-xs' : '' %>"><%= fmt.initials(p.name) %></span><% }) %><% if (people.length > 3) { %><span class="avatar avatar-more">+<%= people.length - 3 %></span><% } %></span>
+    <% if (showName && people.length === 1) { %><span class="qp-name"><%= fmt.firstName(people[0].name) %></span><% } %>
+  <% } %>
+</button>
+<% } %>

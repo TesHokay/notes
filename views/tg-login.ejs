@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>PulsAura CRM</title>
+  <link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png?v=2">
+  <meta name="theme-color" content="#16171d">
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+  <div class="login-page">
+    <div class="card login-box" style="text-align:center;">
+      <img src="/icons/icon-192.png?v=2" alt="" width="64" height="64" style="border-radius:50%; margin-bottom:12px;">
+      <p class="subtitle" id="tgStatus">Входим через Telegram…</p>
+      <div id="tgHelp" hidden>
+        <p id="tgHelpText" style="margin:0 0 14px;"></p>
+        <a class="btn btn-primary" id="tgLoginLink" href="/login" style="width:100%; justify-content:center;">Войти по почте и паролю</a>
+      </div>
+    </div>
+  </div>
+<script>
+(function () {
+  var next = <%- JSON.stringify(next).replace(/</g, '\\u003c') %>;
+  var status = document.getElementById('tgStatus');
+  function help(text) {
+    status.hidden = true;
+    document.getElementById('tgHelpText').textContent = text;
+    document.getElementById('tgLoginLink').href = '/login?next=' + encodeURIComponent(next);
+    document.getElementById('tgHelp').hidden = false;
+  }
+  var tg = window.Telegram && window.Telegram.WebApp;
+  // Opened outside Telegram (or its script didn't load): just go on — the normal login page
+  // will ask for a password if needed and return here afterwards.
+  if (!tg || !tg.initData) { location.replace(next); return; }
+  // Remember we're inside Telegram: every page then disables swipe-to-close (see layout-start).
+  try { sessionStorage.setItem('tg-webapp', '1'); } catch (e) { /* private mode */ }
+  tg.ready();
+  if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+  tg.expand();
+  fetch('/auth/telegram', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ initData: tg.initData, next: next }),
+  }).then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); })
+    .then(function (res) {
+      if (res.body.ok) return location.replace(res.body.next || next);
+      if (res.body.error === 'not_linked') return help('Этот Telegram ещё не привязан к аккаунту CRM. Войдите по почте, затем в Профиле нажмите «Подключить Telegram» — после этого вход будет автоматическим.');
+      help('Не получилось войти через Telegram. Войдите по почте и паролю.');
+    })
+    .catch(function () { help('Нет связи с CRM. Проверьте интернет или войдите по почте и паролю.'); });
+})();
+</script>
+</body>
+</html>

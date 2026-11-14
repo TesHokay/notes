@@ -1,0 +1,78 @@
+<%- include('partials/layout-start') %>
+
+<h1>Настройки — <%= workspace.icon %> <%= workspace.name %></h1>
+<p class="subtitle">Личный workspace. Его видят только владелец и приглашённые участники — команда PulsAura сюда не заглядывает.</p>
+
+<% const notes = { saved: 'Сохранено.', invite_new: 'Новая ссылка создана — старая больше не работает.', invite_off: 'Приглашения по ссылке выключены.', removed: 'Участник убран.' }; %>
+<% if (notes[msg]) { %><div class="hint-box"><%= notes[msg] %></div><% } %>
+<% if (msg === 'noname') { %><div class="error-box">Название не может быть пустым.</div><% } %>
+<% if (msg === 'confirm') { %><div class="error-box">Не удалено: название для подтверждения введено неточно.</div><% } %>
+
+<% if (isOwner) { %>
+<div class="card" style="padding: 16px; margin-bottom: 20px; max-width: 560px;">
+  <h2>Пригласить людей</h2>
+  <p class="subtitle">Отправьте ссылку — жене, другу, коллеге. По ней можно зарегистрироваться (без доступа к PulsAura) или войти в свой аккаунт, и человек окажется здесь.</p>
+  <% if (inviteUrl) { %>
+    <div style="display:flex; gap:6px; align-items:center;">
+      <input type="text" id="inviteUrl" value="<%= inviteUrl %>" readonly style="flex:1;" onclick="this.select()" aria-label="Ссылка-приглашение">
+      <button type="button" class="btn btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('inviteUrl').value).then(() => toast('Ссылка скопирована'))">Копировать</button>
+    </div>
+    <div style="display:flex; gap:6px; margin-top:8px;">
+      <form method="POST" action="/workspaces/<%= workspace.id %>/invite" onsubmit="return confirm('Создать новую ссылку? Старая перестанет работать.')"><button type="submit" class="btn btn-sm btn-ghost">Новая ссылка</button></form>
+      <form method="POST" action="/workspaces/<%= workspace.id %>/invite"><input type="hidden" name="off" value="1"><button type="submit" class="btn btn-sm btn-ghost">Выключить приглашения</button></form>
+    </div>
+  <% } else { %>
+    <form method="POST" action="/workspaces/<%= workspace.id %>/invite"><button type="submit" class="btn btn-primary">Создать ссылку-приглашение</button></form>
+  <% } %>
+</div>
+<% } %>
+
+<h2>Участники</h2>
+<div class="card" style="margin-bottom: 20px; max-width: 560px;">
+  <div class="list-row">
+    <span class="avatar"><%= fmt.initials(owner.name) %></span>
+    <span class="title"><%= owner.name %></span>
+    <span class="lv-muted">Владелец</span>
+  </div>
+  <% members.forEach(m => { %>
+    <div class="list-row">
+      <span class="avatar"><%= fmt.initials(m.name) %></span>
+      <span class="title"><%= m.name %><% if (isOwner) { %><br><span style="color:var(--text-muted); font-size:12px;"><%= m.email %></span><% } %></span>
+      <span class="lv-muted">Участник</span>
+      <% if (isOwner) { %>
+      <form method="POST" action="/workspaces/<%= workspace.id %>/members/<%= m.id %>/remove" onsubmit="return confirm('Убрать <%= m.name %> из workspace?')">
+        <button type="submit" class="btn btn-sm btn-danger">Убрать</button>
+      </form>
+      <% } %>
+    </div>
+  <% }) %>
+  <% if (!members.length) { %><div class="list-row"><span class="lv-muted">Пока только вы.</span></div><% } %>
+</div>
+<p class="subtitle" style="max-width:560px;">Участники видят все пространства этого workspace и работают с задачами. Создавать и удалять пространства, приглашать и убирать людей может только владелец.</p>
+
+<% if (isOwner) { %>
+<div class="card" style="padding: 16px; margin-bottom: 20px; max-width: 480px;">
+  <h2>Название и значок</h2>
+  <form method="POST" action="/workspaces/<%= workspace.id %>/rename" style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap;">
+    <div style="width:72px;"><label>Значок</label><input type="text" name="icon" value="<%= workspace.icon %>" maxlength="8" placeholder="🌿"></div>
+    <div style="flex:1; min-width:180px;"><label>Название</label><input type="text" name="name" value="<%= workspace.name %>" maxlength="60" required></div>
+    <button type="submit" class="btn btn-primary">Сохранить</button>
+  </form>
+</div>
+
+<div class="card" style="padding: 16px; max-width: 480px; border-color: var(--danger, #e5484d);">
+  <h2>Удалить workspace</h2>
+  <p class="subtitle">Удалятся все его пространства (сейчас <%= spaceCount %>) со всеми задачами — и у участников тоже. Перед удалением автоматически сохраняется копия базы.</p>
+  <form method="POST" action="/workspaces/<%= workspace.id %>/delete" onsubmit="return confirm('Точно удалить «<%= workspace.name.replace(/'/g, '') %>» со всеми задачами?')">
+    <label>Для подтверждения впишите название: <b><%= workspace.name %></b></label>
+    <input type="text" name="confirm_name" required autocomplete="off">
+    <div style="margin-top:12px;"><button type="submit" class="btn btn-danger">Удалить workspace</button></div>
+  </form>
+</div>
+<% } else { %>
+<form method="POST" action="/workspaces/<%= workspace.id %>/leave" onsubmit="return confirm('Выйти из «<%= workspace.name.replace(/'/g, '') %>»? Вернуться можно будет только по новому приглашению.')">
+  <button type="submit" class="btn btn-danger">Выйти из workspace</button>
+</form>
+<% } %>
+
+<%- include('partials/layout-end') %>

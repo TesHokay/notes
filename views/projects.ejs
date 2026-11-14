@@ -1,0 +1,40 @@
+<%- include('partials/layout-start') %>
+
+<div class="top-row">
+  <div>
+    <h1>Проекты</h1>
+    <p class="subtitle">Рабочие пространства команды</p>
+  </div>
+  <button class="btn btn-primary" onclick="document.getElementById('newProjectDialog').showModal()">+ Новый проект</button>
+</div>
+
+<div class="card">
+  <% if (!projects.length) { %>
+    <div class="empty-hint" style="padding: 20px 14px;">Проектов пока нет — создайте первый.</div>
+  <% } else { %>
+    <% projects.forEach(p => { %>
+      <div class="list-row">
+        <span class="title"><a href="/projects/<%= p.id %>"><%= p.name %></a></span>
+        <span style="color:var(--text-muted); font-size:12px;"><%= p.open_tasks %> из <%= p.total_tasks %> открыто</span>
+      </div>
+    <% }) %>
+  <% } %>
+</div>
+
+<dialog id="newProjectDialog">
+  <div class="dialog-body">
+    <h2>Новый проект</h2>
+    <form method="POST" action="/projects">
+      <label>Название</label>
+      <input type="text" name="name" required autofocus>
+      <label>Описание (необязательно)</label>
+      <textarea name="description"></textarea>
+      <div class="dialog-actions">
+        <button type="button" class="btn" onclick="document.getElementById('newProjectDialog').close()">Отмена</button>
+        <button type="submit" class="btn btn-primary">Создать</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<%- include('partials/layout-end') %>

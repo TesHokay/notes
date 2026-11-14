@@ -1,0 +1,88 @@
+<%#
+  Board card. Locals: t (enriched task from task-service.enrichForCards), cardMode ('task'|'client').
+  Rendered by the board, by POST quick-add, and by GET /tasks/:id/card (scoped refresh).
+%>
+<%
+  const isClient = cardMode === 'client' && t.client_id;
+  const cardTitle = isClient ? fmt.dealTitle(t.client_name, t.title) : t.title;
+  const subtitle = isClient ? (t.client_website || '') : (t.project_name || '');
+  if (typeof canEdit === 'undefined') canEdit = false;
+  const touch = isClient && t.client_next_touch_at ? fmt.dueInfo(t.client_next_touch_at, null) : null;
+  const MAX_SUBS = 5;
+  const shownSubs = t.activeSubtasks.slice(0, MAX_SUBS);
+  const hiddenSubs = t.activeSubtasks.length - shownSubs.length;
+%>
+<article class="task-card<%= t.done ? ' is-done' : '' %>" data-task-id="<%= t.id %>" data-section-id="<%= t.section_id %>"<%= canEdit ? ' data-selectable' : '' %>>
+  <% if (canEdit) { %><span class="bulk-check" aria-hidden="true"></span><% } %>
+  <div class="tc-head">
+    <button type="button" class="check-circle" data-toggle-done="<%= t.id %>" data-done="<%= t.done %>" aria-label="<%= t.done ? 'Вернуть в работу' : 'Отметить выполненной' %>" title="<%= t.done ? 'Вернуть в работу' : 'Отметить выполненной' %>">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 8.2l2.6 2.6L12 5.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <% if (t.kind === 'meeting') { %><span class="tc-meeting-ico" title="Созвон" aria-label="Созвон">📞</span><% } %>
+    <a href="?task=<%= t.id %>" class="tc-title drawer-link" data-task-id="<%= t.id %>" draggable="false"><%= cardTitle %></a>
+    <% if (t.repeat_rule) { %><span class="repeat-mark" title="Повторяется: <%= fmt.repeatRules[t.repeat_rule] %>" aria-label="Повторяющаяся задача">🔁</span><% } %>
+    <% if (t.priority === 'high') { %><span class="tc-flag" title="Высокий приоритет" aria-label="Высокий приоритет"></span><% } %>
+  </div>
+
+  <% if (subtitle || (isClient && t.client_lead_type)) { %><div class="tc-project"><% if (isClient) { %><%- include('lead-type-badge', { type: t.client_lead_type }) %><% } %><%= subtitle %></div><% } %>
+
+  <% if (t.subtask_count) { %>
+  <div class="tc-subs" data-card-subs>
+    <ul class="tc-sub-list">
+      <% shownSubs.forEach(s => { %>
+      <li class="tc-sub" data-subtask-id="<%= s.id %>">
+        <button type="button" class="check-box" data-card-subtask-done="<%= s.id %>" aria-label="Выполнить подзадачу «<%= s.title %>»">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 8.2l2.6 2.6L12 5.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button type="button" class="tc-sub-title" data-open-subtask="<%= s.id %>" data-task-id="<%= t.id %>"><%= s.title %></button>
+        <span class="tc-sub-qp"><%- include('qp', { kind: 'subtask', id: s.id, taskId: t.id, date: s.due_date, time: s.due_time, people: s.people || [], canEdit: true, showName: false }) %></span>
+      </li>
+      <% }) %>
+    </ul>
+    <% if (hiddenSubs > 0) { %><a href="?task=<%= t.id %>" class="tc-more drawer-link" data-task-id="<%= t.id %>" draggable="false">ещё <%= hiddenSubs %></a><% } %>
+    <% const doneSubs = t.subtasks.filter(s => s.done); %>
+    <% if (doneSubs.length) { %>
+    <%# Completed subtasks: hidden until the "✓ N/M" button in the footer is pressed. %>
+    <div class="tc-done-subs">
+      <ul class="tc-sub-list">
+        <% doneSubs.forEach(s => { %>
+        <li class="tc-sub is-done" data-subtask-id="<%= s.id %>">
+          <button type="button" class="check-box is-checked" data-card-subtask-reopen="<%= s.id %>" aria-label="Вернуть в работу «<%= s.title %>»" title="Вернуть в работу">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 8.2l2.6 2.6L12 5.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button type="button" class="tc-sub-title" data-open-subtask="<%= s.id %>" data-task-id="<%= t.id %>"><%= s.title %></button>
+          <% if (s.people && s.people.length) { %><span class="qp-avatars"><% s.people.slice(0, 3).forEach(p => { %><span class="avatar avatar-xs" title="<%= p.name %>"><%= fmt.initials(p.name) %></span><% }) %></span><% } %>
+        </li>
+        <% }) %>
+      </ul>
+    </div>
+    <% } %>
+  </div>
+  <% } %>
+  <form class="tc-add-sub" data-card-add-subtask-form="<%= t.id %>" hidden>
+    <input type="text" name="title" placeholder="Новая подзадача — Enter" autocomplete="off" aria-label="Название подзадачи">
+  </form>
+
+  <div class="tc-footer">
+    <% if (t.subtask_count) { %>
+      <button type="button" class="tc-progress<%= t.subtask_done === t.subtask_count ? ' all-done' : '' %>" data-toggle-card-subs aria-expanded="false" title="Показать / скрыть выполненные подзадачи">
+        <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span data-progress-text>✓ <%= t.subtask_done %>/<%= t.subtask_count %></span>
+      </button>
+    <% } %>
+    <button type="button" class="tc-icon-btn" data-card-add-subtask="<%= t.id %>" title="Добавить подзадачу" aria-label="Добавить подзадачу">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
+    <% if (isClient && !t.done && t.stage_days >= 3) { %><span class="tc-stage-age<%= t.stage_days >= 14 ? ' is-long' : t.stage_days >= 7 ? ' is-warn' : '' %>" title="Столько дней карточка стоит в этой колонке">⏳ <%= t.stage_days %> дн</span><% } %>
+    <% if (touch) { %><span class="tc-due due-<%= touch.state %>" title="Следующий контакт">⏰ <%= touch.label %></span><% } %>
+    <% if (t.comment_count) { %>
+      <span class="tc-meta" title="Комментарии"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3.5h10v7H7l-3 2.5v-2.5H3z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg><%= t.comment_count %></span>
+    <% } %>
+    <span class="tc-spacer"></span>
+    <% if (t.kind === 'meeting' && t.meeting_url && !t.done) { %><a class="tc-join" href="<%= t.meeting_url %>" target="_blank" rel="noopener" title="Подключиться к созвону">Подключиться</a><% } %>
+    <span class="tc-qp">
+      <%- include('qp', { kind: 'task', id: t.id, taskId: t.id, date: t.due_date, time: t.due_time, people: t.assignees, canEdit, showName: false, which: 'due' }) %>
+      <%- include('qp', { kind: 'task', id: t.id, taskId: t.id, date: t.due_date, time: t.due_time, people: t.assignees, canEdit, showName: true, which: 'assignee' }) %>
+    </span>
+  </div>
+</article>

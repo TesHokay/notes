@@ -1,0 +1,43 @@
+<%- include('partials/layout-start') %>
+
+<div class="top-row">
+  <div>
+    <h1>Пространства</h1>
+    <p class="subtitle"><%= ws ? "Workspace «" + ws.name + "» — видите только вы" : "PulsAura: только те, к которым у вас есть доступ" %></p>
+  </div>
+  <% if (canCreate) { %>
+  <button class="btn btn-primary" onclick="document.getElementById('newSpaceDialog').showModal()">+ Новое пространство</button>
+  <% } %>
+</div>
+
+<div class="card">
+  <% if (!spaces.length) { %>
+    <div class="empty-hint" style="padding: 20px 14px;">Пространств пока нет.</div>
+  <% } else { %>
+    <% spaces.forEach(s => { %>
+      <div class="list-row">
+        <span class="title"><a href="/spaces/<%= s.id %>"><%= s.icon %> <%= s.name %></a></span>
+      </div>
+    <% }) %>
+  <% } %>
+</div>
+
+<% if (canCreate) { %>
+<dialog id="newSpaceDialog">
+  <div class="dialog-body">
+    <h2>Новое пространство</h2>
+    <form method="POST" action="/spaces">
+      <label>Иконка (эмодзи, необязательно)</label>
+      <input type="text" name="icon" maxlength="4" placeholder="🚀">
+      <label>Название</label>
+      <input type="text" name="name" required autofocus>
+      <div class="dialog-actions">
+        <button type="button" class="btn" onclick="document.getElementById('newSpaceDialog').close()">Отмена</button>
+        <button type="submit" class="btn btn-primary">Создать</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+<% } %>
+
+<%- include('partials/layout-end') %>

@@ -1,0 +1,56 @@
+<%# Home lists. Locals: completed, buckets, completedList, canCheck, showWs (mark rows with their workspace) %>
+<%
+function row(t) {
+  const d = fmt.dueInfo(t.due_date, t.due_time);
+  const where = [t.space_name, t.is_subtask ? t.parent_title : (t.card_mode === 'client' ? '' : t.project_name)].filter(Boolean).join(' · ');
+  const title = !t.is_subtask && t.card_mode === 'client' ? fmt.dealTitle(t.client_name, t.title) : t.title;
+  return { d, where, title };
+}
+// `drop`: days from today a row gets when dragged into the section ('none' = clear the date).
+// Empty sections that accept drops stay visible so there is somewhere to drop.
+const d0 = fmt.localDate();
+const sections = completed ? [] : [
+  { key: 'overdue', title: 'Просрочено', list: buckets.overdue, cls: 'is-danger', empty: '' },
+  { key: 'today', title: 'Сегодня', sub: fmt.dayTitle(d0), list: buckets.today, empty: 'На сегодня ничего нет.', drop: 0 },
+  { key: 'tomorrow', title: 'Завтра', sub: fmt.dayTitle(fmt.addDays(d0, 1)), list: buckets.tomorrow, empty: 'Перетащите сюда, чтобы перенести на завтра.', drop: 1 },
+  { key: 'dayAfter', title: 'Послезавтра', sub: fmt.dayTitle(fmt.addDays(d0, 2)), list: buckets.dayAfter, empty: 'Перетащите сюда — на послезавтра.', drop: 2 },
+  { key: 'later', title: 'Позже', sub: fmt.fromDay(fmt.addDays(d0, 3)), list: buckets.later, empty: `Перетащите сюда — перенесётся на ${fmt.dayTitle(fmt.addDays(d0, 7))}.`, drop: 7 },
+  { key: 'noDate', title: 'Без срока', list: buckets.noDate, empty: 'Перетащите сюда, чтобы убрать срок.', drop: 'none' },
+];
+%>
+<div id="homeLists">
+<% if (completed) { %>
+  <section class="home-section">
+    <div class="card home-card">
+      <% completedList.forEach(t => { const r = row(t); %>
+        <div class="home-row is-done" data-kind="<%= t.is_subtask ? 'subtask' : 'task' %>" data-id="<%= t.id %>">
+          <% if (canCheck) { %><button type="button" class="<%= t.is_subtask ? 'check-box' : 'check-circle' %>" data-home-toggle aria-label="Вернуть в работу"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 8.2l2.6 2.6L12 5.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><% } %>
+          <a href="?task=<%= t.link_id %>" class="home-title drawer-link" data-task-id="<%= t.link_id %>" <% if (t.subtask_id) { %>data-focus-subtask="<%= t.subtask_id %>"<% } %>><%= r.title %></a>
+          <span class="home-where"><% if (typeof showWs !== 'undefined' && showWs) { %><span class="ws-tag<%= t.ws_id ? ' is-personal' : '' %>"><%= t.ws_id ? ((t.ws_icon ? t.ws_icon + ' ' : '') + t.ws_name) : 'PulsAura' %></span><% } %><%= r.where %></span>
+          <span class="home-due"><%= fmt.fmtTimestamp(t.completed_at) %></span>
+        </div>
+      <% }) %>
+      <% if (!completedList.length) { %><div class="empty-state">Выполненных задач пока нет.</div><% } %>
+    </div>
+  </section>
+<% } else { %>
+  <% sections.forEach(sec => { if (!sec.list.length && !sec.empty) return; %>
+  <section class="home-section" data-home-section="<%= sec.key %>"<% if (sec.drop !== undefined) { %> data-drop-offset="<%= sec.drop %>"<% } %>>
+    <h2 class="home-h <%= sec.cls || '' %>"><%= sec.title %><% if (sec.sub) { %> <span class="home-h-sub">· <%= sec.sub %></span><% } %> <span class="home-count" data-home-count><%= sec.list.length || '' %></span></h2>
+    <div class="card home-card">
+      <% sec.list.forEach(t => { const r = row(t); %>
+        <div class="home-row" data-kind="<%= t.is_subtask ? 'subtask' : 'task' %>" data-id="<%= t.id %>" data-link-id="<%= t.link_id %>" data-date="<%= t.due_date || '' %>">
+          <% if (t.can_edit || (typeof canReorder !== 'undefined' && canReorder)) { %><span class="home-grip" data-drag-handle data-can-edit="<%= t.can_edit ? '1' : '0' %>" title="Тяните вверх-вниз — порядок; в другой день — новый срок" aria-hidden="true"><svg viewBox="0 0 16 16"><circle cx="6" cy="4" r="1.1"/><circle cx="10" cy="4" r="1.1"/><circle cx="6" cy="8" r="1.1"/><circle cx="10" cy="8" r="1.1"/><circle cx="6" cy="12" r="1.1"/><circle cx="10" cy="12" r="1.1"/></svg></span><% } else { %><span class="home-grip is-off"></span><% } %>
+          <% if (canCheck) { %><button type="button" class="<%= t.is_subtask ? 'check-box' : 'check-circle' %>" data-home-toggle aria-label="Выполнить"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 8.2l2.6 2.6L12 5.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><% } %>
+          <a href="?task=<%= t.link_id %>" class="home-title drawer-link" data-task-id="<%= t.link_id %>" <% if (t.subtask_id) { %>data-focus-subtask="<%= t.subtask_id %>"<% } %>><% if (t.kind === 'meeting') { %>📞 <% } %><%= r.title %><% if (t.repeat_rule) { %> <span class="repeat-mark" title="Повторяющаяся задача">🔁</span><% } %><% if (t.priority === 'high') { %> <span class="tc-flag" title="Высокий приоритет"></span><% } %></a>
+          <span class="home-where"><% if (typeof showWs !== 'undefined' && showWs) { %><span class="ws-tag<%= t.ws_id ? ' is-personal' : '' %>"><%= t.ws_id ? ((t.ws_icon ? t.ws_icon + ' ' : '') + t.ws_name) : 'PulsAura' %></span><% } %><%= r.where %></span>
+          <% if (t.kind === 'meeting' && t.meeting_url) { %><a class="tc-join" href="<%= t.meeting_url %>" target="_blank" rel="noopener">Подключиться</a><% } %>
+          <span class="home-qp"><%- include('qp', { kind: t.is_subtask ? 'subtask' : 'task', id: t.id, taskId: t.link_id, date: t.due_date, time: t.due_time, people: t.people || [], canEdit: t.can_edit, showName: false }) %></span>
+        </div>
+      <% }) %>
+      <div class="empty-state" <%= sec.list.length ? 'hidden' : '' %>><%= sec.empty || 'Пусто.' %></div>
+    </div>
+  </section>
+  <% }) %>
+<% } %>
+</div>

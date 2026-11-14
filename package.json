@@ -1,0 +1,27 @@
+{
+  "name": "team-crm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Простой внутренний таск-трекер для команды",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed": "node db/seed.js",
+    "test": "node --test tests/task-service.test.js tests/import.test.js tests/reminders.test.js tests/telegram-auth.test.js tests/trash.test.js tests/clients.test.js tests/workspaces.test.js tests/recurrence.test.js tests/sales.test.js tests/outreach.test.js",
+    "check": "node scripts/check.js",
+    "test:e2e": "node tests/e2e/acceptance.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-session": "^2.1.0",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.21.0",
+    "multer": "^2.4.0",
+    "read-excel-file": "^9.3.10"
+  }
+}

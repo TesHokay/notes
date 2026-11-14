@@ -1,0 +1,25 @@
+<%- include('partials/layout-start') %>
+
+<header class="page-header">
+  <div class="page-title-row">
+    <h1 class="page-title"><%= greeting %></h1>
+    <nav class="view-tabs" aria-label="Мои задачи">
+      <a href="/" class="<%= completed ? '' : 'active' %>">Мои задачи</a>
+      <a href="/?completed=1" class="<%= completed ? 'active' : '' %>">Выполненные</a>
+    </nav>
+  </div>
+</header>
+
+<% if (team) { %><%- include('partials/home-stats', { team }) %><% } %>
+
+<div class="home-wrap">
+  <%- include('partials/home-lists') %>
+</div>
+
+<%- include('partials/drawer') %>
+<script src="/js/api.js"></script>
+<script src="/js/task.js"></script>
+<script src="/js/quick-pickers.js"></script>
+<script src="/js/home.js"></script>
+<script src="/js/drawer.js"></script>
+<%- include('partials/layout-end') %>

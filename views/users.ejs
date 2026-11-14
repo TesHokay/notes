@@ -1,0 +1,127 @@
+<%- include('partials/layout-start') %>
+
+<div class="top-row">
+  <div>
+    <h1>Команда</h1>
+    <p class="subtitle">Все аккаунты организации и инвайт-код для самостоятельной регистрации</p>
+  </div>
+</div>
+
+<div class="card" style="padding: 16px; margin-bottom: 16px;">
+  <h2>Инвайт-код для регистрации</h2>
+  <p class="subtitle" style="margin-bottom:10px;">Дайте этот код новым сотрудникам — они введут его на странице <a href="/signup" target="_blank">/signup</a>. После регистрации добавьте их в нужные пространства.</p>
+  <div style="display:flex; align-items:center; gap:10px;">
+    <code style="font-size:16px; padding:6px 12px; background:var(--bg); border-radius:6px; letter-spacing:1px;"><%= inviteCode %></code>
+    <form method="POST" action="/users/invite-code/regenerate" onsubmit="return confirm('Старый код перестанет работать. Сгенерировать новый?')">
+      <button type="submit" class="btn btn-sm">Сгенерировать новый</button>
+    </form>
+  </div>
+</div>
+
+<% if (typeof notice !== 'undefined' && notice) { %><div class="hint-box"><%= notice %></div><% } %>
+<% if (error) { %><div class="error-box"><%= error %></div><% } %>
+
+<div class="card users-card" style="margin-bottom:16px;">
+  <% users.forEach(u => { %>
+    <div class="list-row">
+      <span class="avatar"><%= (u.name || '?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase() %></span>
+      <span class="title"><a href="/team/<%= u.id %>" title="Задачи: в работе и выполненные"><%= u.name %></a><br><span style="color:var(--text-muted); font-size:12px;"><%= u.email %></span></span>
+      <span class="badge <%= u.telegram_chat_id ? 'tg-on' : 'tg-off' %>"><%= u.telegram_chat_id ? 'Telegram подключен' : 'Telegram не подключен' %></span>
+      <form method="POST" action="/users/<%= u.id %>/owner" style="display:inline;">
+        <select name="is_owner" onchange="this.form.submit()" <%= u.id === user.id ? 'disabled' : '' %>>
+          <option value="0" <%= !u.is_owner ? 'selected' : '' %>>Обычный аккаунт</option>
+          <option value="1" <%= u.is_owner ? 'selected' : '' %>>Владелец (видит всё)</option>
+        </select>
+      </form>
+      <% if (!u.is_owner) { %>
+      <form method="POST" action="/users/<%= u.id %>/clients" style="display:inline;">
+        <select name="can_see_clients" onchange="this.form.submit()" title="Раздел «Клиенты»: вся база с контактами и заметками" aria-label="Доступ к клиентам для <%= u.name %>">
+          <option value="0" <%= !u.can_see_clients ? 'selected' : '' %>>Клиенты: нет доступа</option>
+          <option value="1" <%= u.can_see_clients ? 'selected' : '' %>>Клиенты: есть доступ</option>
+        </select>
+      </form>
+      <% } %>
+      <% if (u.id !== user.id) { %>
+      <form method="POST" action="/users/<%= u.id %>/password" style="display:flex; gap:4px;">
+        <input type="password" name="password" minlength="8" required placeholder="Новый пароль" autocomplete="new-password" style="width:140px;" aria-label="Новый пароль для <%= u.name %>">
+        <button type="submit" class="btn btn-sm">Сбросить</button>
+      </form>
+      <form method="POST" action="/users/<%= u.id %>/delete" onsubmit="return confirm('Удалить пользователя <%= u.name %>?')">
+        <button type="submit" class="btn btn-sm btn-danger">Удалить</button>
+      </form>
+      <% } %>
+    </div>
+    <div class="user-spaces">
+      <% if (u.is_owner) { %>
+        <span class="lv-muted">Владелец — видит все пространства.</span>
+      <% } else { const mine = memberships[u.id] || []; const mineIds = new Set(mine.map(m => m.space_id)); const rest = spaces.filter(s => !mineIds.has(s.id)); %>
+        <span class="lv-muted us-label">Пространства:</span>
+        <% if (!mine.length) { %><span class="us-none">нигде — ничего не видит</span><% } %>
+        <% mine.forEach(m => { %>
+          <span class="us-chip">
+            <a href="/spaces/<%= m.space_id %>/settings" title="Настройки пространства"><%= m.icon %> <%= m.name %></a>
+            <form method="POST" action="/users/<%= u.id %>/spaces">
+              <input type="hidden" name="space_id" value="<%= m.space_id %>">
+              <select name="role" onchange="this.form.submit()" aria-label="Роль <%= u.name %> в «<%= m.name %>»">
+                <option value="manager" <%= m.role === 'manager' ? 'selected' : '' %>>Менеджер</option>
+                <option value="member" <%= m.role === 'member' ? 'selected' : '' %>>Участник</option>
+                <option value="guest" <%= m.role === 'guest' ? 'selected' : '' %>>Гость</option>
+              </select>
+            </form>
+            <form method="POST" action="/users/<%= u.id %>/spaces/<%= m.space_id %>/remove" onsubmit="return confirm('Убрать <%= u.name %> из «<%= m.name %>»?')">
+              <button type="submit" class="us-remove" aria-label="Убрать из «<%= m.name %>»" title="Убрать из пространства">×</button>
+            </form>
+          </span>
+        <% }) %>
+        <% if (rest.length) { %>
+        <details class="us-add">
+          <summary class="btn btn-sm btn-ghost">+ В пространство</summary>
+          <form method="POST" action="/users/<%= u.id %>/spaces">
+            <select name="space_id" required aria-label="Пространство для <%= u.name %>">
+              <option value="" selected disabled>Куда добавить…</option>
+              <% rest.forEach(s => { %><option value="<%= s.id %>"><%= s.icon %> <%= s.name %></option><% }) %>
+            </select>
+            <select name="role" aria-label="Роль">
+              <option value="member">как Участника</option>
+              <option value="manager">как Менеджера</option>
+              <option value="guest">как Гостя</option>
+            </select>
+            <button type="submit" class="btn btn-sm btn-primary">Добавить</button>
+            <button type="button" class="btn btn-sm btn-ghost" onclick="this.closest('details').open = false" title="Отмена" aria-label="Отмена">✕</button>
+          </form>
+        </details>
+        <% } %>
+        <form method="POST" action="/users/<%= u.id %>/sales-space" style="display:inline;" onsubmit="return confirm('Создать личную воронку «Sales · <%= u.name.replace(/'/g, '') %>» с колонками как в Sales?')">
+          <button type="submit" class="btn btn-sm btn-ghost" title="Отдельная Sales-воронка для этого продажника: свои лиды, импорт из Excel">💼 + Sales-воронка</button>
+        </form>
+      <% } %>
+    </div>
+  <% }) %>
+</div>
+
+<p class="subtitle" style="max-width:720px;">
+  <b>Владелец</b> видит всё и управляет командой. <b>Обычный аккаунт</b> видит только пространства, куда его добавили,
+  а роль внутри пространства (Менеджер / Участник / Гость) выдаётся там же: пространство → ⚙ Настройки → «Участники пространства».
+  <b>Клиенты</b> — отдельный доступ к базе клиентов с контактами.
+</p>
+
+<div class="card" style="padding: 16px; max-width: 420px;">
+  <h2>Добавить участника вручную</h2>
+  <form method="POST" action="/users">
+    <label>Имя</label>
+    <input type="text" name="name" required>
+    <label>Email</label>
+    <input type="email" name="email" required autocomplete="off">
+    <label>Пароль (мин. 8 символов)</label>
+    <input type="password" name="password" minlength="8" required autocomplete="new-password">
+    <label style="display:flex; align-items:center; gap:8px; font-weight:400; color:var(--text);">
+      <input type="checkbox" name="is_owner" style="width:auto;"> Сделать владельцем
+    </label>
+    <div style="margin-top:12px;">
+      <button type="submit" class="btn btn-primary">Создать</button>
+    </div>
+  </form>
+  <p class="subtitle" style="margin-top:10px;">После создания зайдите в нужные пространства и добавьте туда этого человека.</p>
+</div>
+
+<%- include('partials/layout-end') %>

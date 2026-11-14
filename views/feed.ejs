@@ -1,0 +1,56 @@
+<%- include('partials/layout-start') %>
+
+<h1>Общий фид</h1>
+<div style="display:flex; gap:6px; margin: 10px 0 20px;">
+  <% channels.forEach(c => { %>
+    <a href="/feed/<%= c.name %>" class="btn btn-sm <%= c.id === channel.id ? 'btn-primary' : '' %>">#<%= c.name %></a>
+  <% }) %>
+</div>
+
+<div class="card" style="padding: 14px; margin-bottom: 20px;">
+  <form method="POST" action="/feed/<%= channel.name %>" enctype="multipart/form-data">
+    <textarea name="body" placeholder="Написать в #<%= channel.name %>..."></textarea>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+      <input type="file" name="image" accept="image/*" style="width:auto;">
+      <button type="submit" class="btn btn-primary">Опубликовать</button>
+    </div>
+  </form>
+</div>
+
+<% if (!posts.length) { %>
+  <p class="empty-hint">Пока пусто в #<%= channel.name %>.</p>
+<% } %>
+
+<% posts.forEach(p => { %>
+  <div class="card" style="padding: 14px; margin-bottom: 14px;">
+    <div style="display:flex; justify-content:space-between;">
+      <div><strong><%= p.author_name %></strong> <span style="color:var(--text-muted); font-size:12px;"><%= p.created_at %></span></div>
+      <% if (p.user_id === user.id || user.is_owner) { %>
+        <form method="POST" action="/feed/posts/<%= p.id %>/delete" onsubmit="return confirm('Удалить пост?')">
+          <button type="submit" class="btn-ghost btn-sm" style="border:none;">✕</button>
+        </form>
+      <% } %>
+    </div>
+    <% if (p.body) { %><p style="white-space: pre-wrap; margin: 8px 0;"><%= p.body %></p><% } %>
+    <% if (p.image_path) { %><img src="<%= p.image_path %>" style="max-width:100%; border-radius:8px; margin-bottom:8px;"><% } %>
+
+    <div class="reactions" data-post-id="<%= p.id %>" style="display:flex; gap:6px; margin: 6px 0;">
+      <% ['👍','❤️','🔥','😂'].forEach(emoji => {
+        const r = p.reactions.find(x => x.emoji === emoji);
+      %>
+        <button type="button" class="btn btn-sm react-btn <%= r && r.mine ? 'btn-primary' : '' %>" data-emoji="<%= emoji %>"><%= emoji %> <%= r ? r.count : '' %></button>
+      <% }) %>
+    </div>
+
+    <% p.comments.forEach(c => { %>
+      <div class="comment"><div class="meta"><%= c.author_name %> · <%= c.created_at %></div><div><%= c.body %></div></div>
+    <% }) %>
+    <form method="POST" action="/feed/posts/<%= p.id %>/comments" style="display:flex; gap:8px; margin-top:8px;">
+      <input type="text" name="body" placeholder="Комментарий..." style="flex:1;">
+      <button type="submit" class="btn btn-sm">Отправить</button>
+    </form>
+  </div>
+<% }) %>
+
+<script src="/js/feed.js"></script>
+<%- include('partials/layout-end') %>

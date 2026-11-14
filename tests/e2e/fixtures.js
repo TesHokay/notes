@@ -1,0 +1,31 @@
+// Usage: DB_PATH=... node fixtures.js  (run from crm dir after seed)
+const path = require('node:path');
+const root = process.env.CRM_DIR || path.join(__dirname, '..', '..');
+const bcrypt = require(path.join(root, 'node_modules/bcryptjs'));
+const db = require(path.join(root, 'db/index.js'));
+const hash = bcrypt.hashSync('pass123', 4);
+db.prepare("INSERT OR IGNORE INTO users (name,email,password_hash,is_owner) VALUES ('Никита Иванов','nikita@team.local',?,0)").run(hash);
+const nikita = db.prepare("SELECT id FROM users WHERE email='nikita@team.local'").get().id;
+const admin = db.prepare("SELECT id FROM users WHERE email='admin@team.local'").get().id;
+const prod = db.prepare("SELECT id FROM spaces WHERE name='Production'").get().id;
+const sales = db.prepare("SELECT id FROM spaces WHERE name='Sales'").get().id;
+db.prepare("INSERT OR IGNORE INTO space_members (space_id,user_id,role) VALUES (?,?,'member')").run(prod, nikita);
+const secs = db.prepare('SELECT id,name FROM sections WHERE space_id=? ORDER BY position').all(prod);
+const S = n => secs.find(s => s.name === n).id;
+const proj = n => db.prepare('INSERT INTO projects (space_id,name) VALUES (?,?)').run(prod, n).lastInsertRowid;
+const danmax = proj('DANMAX'), easy = proj('Easy Payments'), pa = proj('PulsAura');
+const ins = db.prepare('INSERT INTO tasks (space_id,section_id,project_id,title,position,created_by,due_date,due_time) VALUES (?,?,?,?,?,?,?,?)');
+const today = new Date().toISOString().slice(0,10);
+const t1 = ins.run(prod, S('К выполнению'), danmax, 'DANMAX — ролик', 0, admin, today, '18:00').lastInsertRowid;
+ins.run(prod, S('К выполнению'), easy, 'Лендинг Easy Payments', 1, admin, '2026-09-01', null);
+ins.run(prod, S('К выполнению'), pa, 'Сделать ролик Shadow Guard', 2, admin, null, null);
+ins.run(prod, S('В работе'), danmax, 'Обложка для трека', 0, admin, null, null);
+db.prepare('INSERT INTO task_assignees (task_id,user_id) VALUES (?,?)').run(t1, nikita);
+const sub = db.prepare('INSERT INTO subtasks (task_id,title,position,assignee_id) VALUES (?,?,?,?)');
+sub.run(t1, 'Сделать монтаж', 0, null); sub.run(t1, 'Добавить саунд', 1, nikita); sub.run(t1, 'Сделать обложку', 2, null);
+// Sales client
+const ss = db.prepare('SELECT id FROM sections WHERE space_id=? ORDER BY position').all(sales);
+const cid = db.prepare("INSERT INTO clients (name) VALUES ('Fish Shop')").run().lastInsertRowid;
+const ct = db.prepare('INSERT INTO tasks (space_id,section_id,client_id,title,position,created_by) VALUES (?,?,?,?,?,?)').run(sales, ss[0].id, cid, 'Fish Shop', 0, admin).lastInsertRowid;
+sub.run(ct, 'Send offer', 0, null); sub.run(ct, 'Follow-up', 1, null);
+console.log('fixtures ok', { prod, sales, t1, ct });

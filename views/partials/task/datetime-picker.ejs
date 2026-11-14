@@ -1,0 +1,19 @@
+<%# DateTimePicker. Locals: id, date, time, disabled %>
+<% const di = fmt.dueInfo(date, time); %>
+<details class="dt-picker" data-dt-picker="<%= id %>" <%= disabled ? 'data-disabled' : '' %>>
+  <summary class="field-value due-<%= di.state %>" data-dt-label><%= di.full || 'Без срока' %></summary>
+  <% if (!disabled) { %>
+  <div class="dt-pop" role="dialog" aria-label="Выбор срока">
+    <div class="dt-quick">
+      <button type="button" data-dt-quick="today">Сегодня <span class="dt-hint"><%= fmt.shortDay(0) %></span></button>
+      <button type="button" data-dt-quick="tomorrow">Завтра <span class="dt-hint"><%= fmt.shortDay(1) %></span></button>
+      <button type="button" data-dt-quick="nextweek">Через неделю <span class="dt-hint"><%= fmt.shortDay(7) %></span></button>
+      <button type="button" data-dt-quick="none">Без срока</button>
+    </div>
+    <div class="dt-inputs">
+      <label><span>Дата</span><input type="date" data-dt-date value="<%= date || '' %>"></label>
+      <label><span>Время, <%= fmt.tzLabel() %> <em>необязательно</em></span><input type="time" data-dt-time value="<%= time || '' %>"></label>
+    </div>
+  </div>
+  <% } %>
+</details>

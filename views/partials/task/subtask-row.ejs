@@ -1,0 +1,17 @@
+<%# Drawer subtask row. Locals: s, users, canManage.
+    Due date + assignee use the same quick-picker buttons as cards (calendar / person icons,
+    "Без срока" clears the date); deleting is a separate trash button with confirmation. %>
+<li class="st-row<%= s.done ? ' is-done' : '' %>" data-subtask-id="<%= s.id %>">
+  <button type="button" class="check-box" data-toggle-subtask="<%= s.id %>" aria-pressed="<%= s.done ? 'true' : 'false' %>" aria-label="<%= s.done ? 'Вернуть в работу' : 'Выполнить' %>">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 8.2l2.6 2.6L12 5.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <input class="st-title" value="<%= s.title %>" data-subtask-title="<%= s.id %>" aria-label="Название подзадачи" autocomplete="off">
+  <span class="st-meta">
+    <%- include('../qp', { kind: 'subtask', id: s.id, taskId: s.task_id, date: s.due_date, time: s.due_time, people: s.people || [], canEdit: true, showName: true }) %>
+    <% if (canManage) { %>
+    <button type="button" class="icon-btn st-delete" data-delete-subtask="<%= s.id %>" aria-label="Удалить подзадачу" title="Удалить подзадачу">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5M7 7v4M9 7v4" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <% } %>
+  </span>
+</li>

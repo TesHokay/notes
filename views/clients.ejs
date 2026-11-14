@@ -1,0 +1,74 @@
+<%- include('partials/layout-start') %>
+
+<div class="top-row">
+  <div>
+    <h1><%= fullBase ? 'Клиенты' : 'Мои клиенты' %></h1>
+    <p class="subtitle">Вся база: на каком этапе клиент, что с ним делать дальше и кто отвечает. Клиент остаётся здесь и после закрытия сделки.</p>
+  </div>
+  <% if (fullBase) { %><button class="btn btn-primary" onclick="document.getElementById('newClientDialog').showModal()">+ Клиент</button><% } %>
+</div>
+
+<div class="segmented" style="margin-bottom:12px;">
+  <a href="/clients<%= leadType ? '?type=' + leadType : '' %>" class="<%= filter === 'all' ? 'active' : '' %>">Все <span class="lv-muted"><%= counts.all %></span></a>
+  <a href="/clients?f=active<%= leadType ? '&type=' + leadType : '' %>" class="<%= filter === 'active' ? 'active' : '' %>">В работе <span class="lv-muted"><%= counts.active %></span></a>
+  <a href="/clients?f=quiet<%= leadType ? '&type=' + leadType : '' %>" class="<%= filter === 'quiet' ? 'active' : '' %>">⚠ Давно без контакта <span class="lv-muted"><%= counts.quiet %></span></a>
+  <a href="/clients?f=idle<%= leadType ? '&type=' + leadType : '' %>" class="<%= filter === 'idle' ? 'active' : '' %>">Без активной сделки <span class="lv-muted"><%= counts.idle %></span></a>
+</div>
+
+<% const tq = (t) => '/clients' + ((filter !== 'all' || t) ? '?' + new URLSearchParams(Object.entries({ f: filter === 'all' ? '' : filter, type: t }).filter(([, v]) => v)).toString() : ''); %>
+<div class="segmented" style="margin-bottom:12px;">
+  <a href="<%= tq('') %>" class="<%= leadType ? '' : 'active' %>">Все типы</a>
+  <a href="<%= tq('agency') %>" class="<%= leadType === 'agency' ? 'active' : '' %>">🏢 Агентства <span class="lv-muted"><%= typeCounts.agency %></span></a>
+  <a href="<%= tq('business') %>" class="<%= leadType === 'business' ? 'active' : '' %>">🛍 Бизнесы <span class="lv-muted"><%= typeCounts.business %></span></a>
+  <a href="<%= tq('none') %>" class="<%= leadType === 'none' ? 'active' : '' %>">Тип не указан <span class="lv-muted"><%= typeCounts.none %></span></a>
+</div>
+
+<div class="list-view cl-list card">
+  <div class="lv-head"><span>Клиент</span><span>Этап</span><span>Следующее действие</span><span>Ответственный</span><span>Открыто</span><span>Последнее движение</span></div>
+  <% rows.forEach(r => { const c = r.client; const nd = r.next ? fmt.dueInfo(r.next.due_date, r.next.due_time) : null; %>
+    <div class="lv-row cl-row<%= r.quiet ? ' is-quiet' : '' %><%= r.activeDeal ? '' : ' is-idle' %>">
+      <a href="/clients/<%= c.id %>" class="lv-title"><%= c.name %><%- include('partials/lead-type-badge', { type: c.lead_type }) %><% if (c.contact_name || c.contact_telegram) { %> <span class="lv-sub"><%= c.contact_name || c.contact_telegram %></span><% } %></a>
+      <span><% if (r.stage) { %><a href="/tasks/<%= r.stage.taskId %>" class="pill" title="<%= r.stage.space %>"><%= r.stage.icon %> <%= r.stage.name %></a><% } else { %><span class="lv-muted">нет сделки</span><% } %></span>
+      <span class="lv-next"><% if (r.next) { %><a href="/tasks/<%= r.next.link %>"><%= r.next.title %></a><% if (nd.label) { %> <span class="due-<%= nd.state %>">· <%= nd.label %><%- fmt.tzMark(nd.tz) %></span><% } %><% } else if (r.activeDeal) { %><span class="due-overdue">не запланировано</span><% } else { %><span class="lv-muted">—</span><% } %></span>
+      <span><% if (r.people.length) { %><span class="qp-avatars"><% r.people.slice(0, 3).forEach(p => { %><span class="avatar avatar-xs" title="<%= p.name %>"><%= fmt.initials(p.name) %></span><% }) %></span> <span class="lv-muted"><%= r.people.length === 1 ? fmt.firstName(r.people[0].name) : '' %></span><% } else { %><span class="lv-muted">—</span><% } %></span>
+      <span class="<%= r.openCount ? '' : 'lv-muted' %>"><%= r.openCount || '—' %></span>
+      <span class="<%= r.quiet ? 'due-overdue' : 'lv-muted' %>" title="<%= r.lastActivity ? 'Последнее движение по клиенту' : '' %>">
+        <%= r.quiet ? '⚠ ' : '' %><%= r.idleDays === null ? '—' : r.idleDays === 0 ? 'сегодня' : r.idleDays === 1 ? 'вчера' : r.idleDays + ' дн. назад' %>
+      </span>
+    </div>
+  <% }) %>
+  <% if (!rows.length) { %><div class="empty-state"><%= filter === 'quiet' ? 'Все клиенты на связи 👍' : 'Здесь пусто.' %></div><% } %>
+</div>
+<p class="subtitle" style="margin-top:10px;">⚠ — есть открытая сделка, но <%= quietDays %>+ дней по клиенту ничего не происходило и не запланирован следующий шаг. Владельцы получают таких клиентов в утренней сводке в Telegram.</p>
+
+<dialog id="newClientDialog">
+  <div class="dialog-body">
+    <h2>Новый клиент</h2>
+    <form method="POST" action="/clients">
+      <label>Название</label>
+      <input type="text" name="name" required autofocus>
+      <label>Сайт</label>
+      <input type="text" name="website" placeholder="example.com">
+      <label>Тип лида</label>
+      <select name="lead_type"><option value="">— не указан —</option><option value="agency">🏢 Агентство</option><option value="business">🛍 Бизнес</option></select>
+      <div class="field-grid">
+        <div><label>Контакт</label><input type="text" name="contact_name"></div>
+        <div><label>Telegram</label><input type="text" name="contact_telegram" placeholder="@username"></div>
+      </div>
+      <div class="field-grid">
+        <div><label>Телефон</label><input type="text" name="contact_phone"></div>
+        <div><label>Email</label><input type="email" name="contact_email"></div>
+      </div>
+      <label>Потенциал</label>
+      <input type="text" name="potential_value" placeholder="например: 150k">
+      <label>Заметки</label>
+      <textarea name="notes"></textarea>
+      <div class="dialog-actions">
+        <button type="button" class="btn" onclick="document.getElementById('newClientDialog').close()">Отмена</button>
+        <button type="submit" class="btn btn-primary">Создать</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<%- include('partials/layout-end') %>

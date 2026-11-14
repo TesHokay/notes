@@ -1,0 +1,47 @@
+<%# Board column. Locals: section ({id,name,tasks}), cardMode, canManage, canCreate %>
+<section class="column" data-section-id="<%= section.id %>">
+  <header class="column-header">
+    <h2 class="col-name" data-section-name="<%= section.id %>" <% if (canManage) { %>title="Двойной клик — переименовать"<% } %>><%= section.name %></h2>
+    <span class="col-count" data-col-count><%= section.tasks.length %></span>
+    <% if (canManage) { %><button type="button" class="btn btn-sm btn-ghost col-select-all" data-select-column="<%= section.id %>" title="Выбрать все карточки колонки">все</button><% } %>
+    <span class="tc-spacer"></span>
+    <% if (canCreate) { %>
+    <button type="button" class="icon-btn" data-add-task-top="<%= section.id %>" title="Добавить задачу в начало" aria-label="Добавить задачу в начало">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
+    <% } %>
+    <% if (canManage) { %>
+    <button type="button" class="icon-btn col-move" data-move-section="<%= section.id %>" data-dir="left" title="Сдвинуть колонку влево" aria-label="Сдвинуть колонку влево">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 4L5.5 8l4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button type="button" class="icon-btn col-move" data-move-section="<%= section.id %>" data-dir="right" title="Сдвинуть колонку вправо" aria-label="Сдвинуть колонку вправо">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button type="button" class="icon-btn col-delete" data-delete-section="<%= section.id %>" title="Удалить колонку" aria-label="Удалить колонку">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
+    <% } %>
+  </header>
+  <div class="column-body" data-drop-zone="<%= section.id %>">
+    <% if (canCreate) { %>
+    <form class="quick-add-form quick-add-top" data-quick-add="<%= section.id %>" data-placement="top" hidden>
+      <input type="text" name="title" placeholder="<%= cardMode === 'client' ? 'Название клиента' : 'Название задачи' %>" autocomplete="off">
+      <div class="quick-add-hint">Enter — создать · Esc — отмена</div>
+    </form>
+    <% } %>
+    <% section.tasks.forEach(t => { %><%- include('task-card', { t, cardMode, canEdit: canManage }) %><% }) %>
+    <div class="column-empty">Нет задач</div>
+  </div>
+  <% if (canCreate) { %>
+  <footer class="column-footer">
+    <button type="button" class="add-task-btn" data-add-task="<%= section.id %>">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <%= cardMode === 'client' ? 'Добавить клиента' : 'Добавить задачу' %>
+    </button>
+    <form class="quick-add-form" data-quick-add="<%= section.id %>" data-placement="bottom" hidden>
+      <input type="text" name="title" placeholder="<%= cardMode === 'client' ? 'Название клиента' : 'Название задачи' %>" autocomplete="off">
+      <div class="quick-add-hint">Enter — создать · Esc — отмена</div>
+    </form>
+  </footer>
+  <% } %>
+</section>

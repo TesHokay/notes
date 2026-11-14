@@ -1,0 +1,34 @@
+<%- include('partials/layout-start') %>
+
+<h1>🗑 Корзина</h1>
+<p class="subtitle">Удалённые задачи и подзадачи хранятся здесь <%= keepDays %> дней, потом удаляются навсегда.
+  <% if (!user.is_owner) { %>Вы видите то, что удалили сами.<% } %></p>
+
+<% if (restoredTaskId) { %><div class="hint-box">Восстановлено. <a href="/tasks/<%= restoredTaskId %>">Открыть задачу →</a></div><% } %>
+<% if (error) { %><div class="error-box"><%= error %></div><% } %>
+
+<div class="card">
+  <% if (!items.length) { %><div class="empty-state">Корзина пуста.</div><% } %>
+  <% items.forEach(it => { %>
+    <div class="list-row">
+      <span class="title">
+        <%= it.kind === 'subtask' ? '↳ ' : '' %><%= it.title %>
+        <br><span style="color:var(--text-muted); font-size:12px;">
+          <%= it.kind === 'subtask' ? 'Подзадача' : 'Задача' %>
+          · <%= it.space_name || 'пространство удалено' %><% if (it.kind === 'task' && it.section_name) { %> → <%= it.section_name %><% } %><% if (it.kind === 'subtask' && it.parent_title) { %> → «<%= it.parent_title %>»<% } %>
+          · удалил(а) <%= it.deleted_by_name || '—' %>, <%= fmt.fmtTimestamp(it.deleted_at) %>
+        </span>
+      </span>
+      <form method="POST" action="/trash/<%= it.id %>/restore">
+        <button type="submit" class="btn btn-sm btn-primary">Восстановить</button>
+      </form>
+      <% if (it.can_purge) { %>
+      <form method="POST" action="/trash/<%= it.id %>/purge" onsubmit="return confirm('Удалить «<%= it.title.replace(/'/g, '') %>» навсегда? Вернуть будет нельзя.')">
+        <button type="submit" class="btn btn-sm btn-danger">Навсегда</button>
+      </form>
+      <% } %>
+    </div>
+  <% }) %>
+</div>
+
+<%- include('partials/layout-end') %>

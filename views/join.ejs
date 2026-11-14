@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Приглашение — PulsAura CRM</title>
+  <link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png?v=2">
+  <meta name="theme-color" content="#16171d">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="login-page">
+    <div class="card login-box">
+      <% if (!ws) { %>
+        <h1>Ссылка не работает</h1>
+        <p class="subtitle">Приглашение устарело или выключено. Попросите у владельца новую ссылку.</p>
+        <div class="switch-link"><a href="/">На главную</a></div>
+      <% } else { %>
+        <h1><%= ws.icon %> <%= ws.name %></h1>
+        <p class="subtitle"><%= ws.owner_name %> приглашает вас в свой workspace.</p>
+        <% if (error) { %><div class="error-box"><%= error %></div><% } %>
+
+        <% if (user) { %>
+          <p style="margin:0 0 14px;">Вы вошли как <b><%= user.name %></b>.</p>
+          <form method="POST" action="/join/<%= token %>">
+            <button type="submit" class="btn btn-primary" style="width:100%;">Присоединиться</button>
+          </form>
+        <% } else { %>
+          <form method="POST" action="/join/<%= token %>">
+            <label>Как вас зовут</label>
+            <input type="text" name="name" value="<%= values.name || '' %>" required maxlength="80" autocomplete="name">
+            <label>Email</label>
+            <input type="email" name="email" value="<%= values.email || '' %>" required autocomplete="email">
+            <label>Придумайте пароль (мин. 8 символов)</label>
+            <input type="password" name="password" minlength="8" required autocomplete="new-password">
+            <div class="dialog-actions" style="margin-top:16px; justify-content:stretch;">
+              <button type="submit" class="btn btn-primary" style="width:100%;">Зарегистрироваться и войти</button>
+            </div>
+          </form>
+          <div class="switch-link">Уже есть аккаунт? <a href="/login?next=<%= encodeURIComponent('/join/' + token) %>">Войти</a></div>
+        <% } %>
+      <% } %>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<%- include('partials/layout-start') %>
+
+<header class="page-header">
+  <p class="crumb"><a href="/spaces/<%= space.id %>">← <%= space.icon %> <%= space.name %></a></p>
+  <div class="page-title-row"><h1 class="page-title">Импорт клиентов</h1></div>
+</header>
+
+<div class="import-wrap">
+<% if (error) { %><div class="error-box"><%= error %></div><% } %>
+
+<% if (result) { %>
+  <div class="card import-card">
+    <h2>Готово ✓</h2>
+    <p>Новых клиентов: <b><%= result.created %></b> · обновлено: <b><%= result.updated %></b> · новых действий: <b><%= result.actions %></b> · перемещено по этапам: <b><%= result.moved %></b><% if (result.skipped) { %> · пропущено строк с ошибками: <b><%= result.skipped %></b><% } %></p>
+    <p><a class="btn btn-primary" href="/spaces/<%= space.id %>">Открыть доску</a> <a class="btn" href="/spaces/<%= space.id %>/import">Загрузить ещё файл</a></p>
+  </div>
+
+<% } else if (planned) { %>
+  <div class="card import-card">
+    <h2>Проверьте перед загрузкой — <%= filename %></h2>
+    <p>
+      Строк: <b><%= planned.stats.total %></b> ·
+      новых клиентов: <b><%= planned.stats.create %></b> ·
+      обновить: <b><%= planned.stats.update %></b> ·
+      действий: <b><%= planned.stats.actions %></b>
+      <% if (planned.stats.errors) { %> · <span class="due-overdue">с ошибками (пропущу): <b><%= planned.stats.errors %></b></span><% } %>
+    </p>
+    <p class="lv-muted">Нашёл колонки: <%= planned.columnsFound.join(', ') %>.<% if (planned.columnsMissing.length) { %> Нет в файле (не страшно): <%= planned.columnsMissing.join(', ') %>.<% } %></p>
+    <div class="import-table-wrap">
+      <table class="import-table">
+        <thead><tr><th>#</th><th>Клиент</th><th>Что будет</th><th>Этап</th><th>Ответственный</th><th>Следующее действие</th><th>След. контакт</th><th>Замечания</th></tr></thead>
+        <tbody>
+          <% planned.rows.forEach(r => { const ad = fmt.dueInfo(r.action_date, r.action_time); const nt = fmt.dueInfo(r.next_touch, null); %>
+            <tr class="<%= r.errors.length ? 'is-error' : '' %>">
+              <td class="lv-muted"><%= r.line %></td>
+              <td><b><%= r.name || '—' %></b><% if (r.contact_name) { %><div class="lv-muted"><%= r.contact_name %></div><% } %></td>
+              <td><% if (r.errors.length) { %><span class="pill pill-danger">пропуск</span><% } else if (r.mode === 'create') { %><span class="pill pill-new">новый</span><% } else { %><span class="pill">обновить</span><% } %></td>
+              <td><%= r.targetSection ? r.targetSection.name : '—' %><% if (r.section && r.mode === 'update') { %> <span class="lv-muted">(перенос)</span><% } %></td>
+              <td><%= r.owner ? r.owner.name : '—' %></td>
+              <td><%= r.next_action || '—' %><% if (ad.label) { %> <span class="lv-muted">· <%= ad.full %></span><% } %></td>
+              <td><%= nt.full || '—' %></td>
+              <td class="import-notes"><% r.errors.forEach(e => { %><div class="due-overdue"><%= e %></div><% }) %><% r.warnings.forEach(w => { %><div class="lv-muted"><%= w %></div><% }) %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <form method="POST" action="/spaces/<%= space.id %>/import/apply" class="import-actions">
+      <input type="hidden" name="token" value="<%= token %>">
+      <button type="submit" class="btn btn-primary" <%= planned.stats.total === planned.stats.errors ? 'disabled' : '' %>>Применить</button>
+      <a href="/spaces/<%= space.id %>/import" class="btn btn-ghost">Отмена</a>
+    </form>
+  </div>
+
+<% } else { %>
+  <div class="import-grid">
+    <div class="card import-card">
+      <h2>1. Заполните шаблон</h2>
+      <p class="lv-muted">Одна строка — один клиент. Обязателен только «Клиент», остальное по желанию. Если клиент уже есть в CRM (совпадает название) — он обновится, дублей не будет. Повторная загрузка того же файла ничего не задвоит.</p>
+      <p><a class="btn" href="/spaces/<%= space.id %>/import/template.xlsx">⬇ Скачать шаблон Excel</a></p>
+      <details class="sub-details">
+        <summary>Что в какой колонке</summary>
+        <ul class="import-cols">
+          <li><b>Клиент*</b> — название компании / человека</li>
+          <li><b>Этап</b> — одна из колонок воронки: <%= stages.join(', ') %></li>
+          <li><b>Контактное лицо, Telegram, Телефон, Email, Сайт, Потенциал</b> — карточка клиента</li>
+          <li><b>Ответственный</b> — имя или email сотрудника</li>
+          <li><b>Следующее действие + Срок действия + Время</b> — станет действием на карточке (с галочкой)</li>
+          <li><b>Следующий контакт</b> — дата follow-up</li>
+          <li><b>Итог контакта</b> — попадёт в историю клиента</li>
+          <li><b>Заметки</b> — добавятся к заметкам клиента</li>
+        </ul>
+        <p class="lv-muted">Даты: 25.09.2026, 2026-09-25 или обычная дата Excel. Заголовки можно писать и по-другому («Компания», «Статус», «Менеджер», «Комментарий» — тоже поймёт).</p>
+      </details>
+    </div>
+
+    <div class="card import-card">
+      <h2>2. Загрузите файл</h2>
+      <form method="POST" action="/spaces/<%= space.id %>/import/preview" enctype="multipart/form-data" class="import-upload">
+        <input type="file" name="file" accept=".xlsx,.csv" required>
+        <button type="submit" class="btn btn-primary">Проверить</button>
+      </form>
+      <p class="lv-muted">Сначала покажу, что изменится, и только после «Применить» запишу в CRM.</p>
+    </div>
+
+    <div class="card import-card import-ai">
+      <h2>Через ChatGPT / Claude</h2>
+      <p class="lv-muted">Если база в своём формате или это просто заметки — скопируйте промпт, вставьте в нейросеть вместе со своей таблицей или текстом, получите файл в нужном формате и загрузите его сюда.</p>
+      <textarea id="aiPrompt" readonly rows="9"><%= aiPrompt %></textarea>
+      <button type="button" class="btn btn-sm" id="copyPrompt">Скопировать промпт</button>
+    </div>
+  </div>
+  <script>
+    document.getElementById('copyPrompt').addEventListener('click', async () => {
+      const ta = document.getElementById('aiPrompt');
+      try { await navigator.clipboard.writeText(ta.value); } catch (e) { ta.select(); document.execCommand('copy'); }
+      toast('Промпт скопирован');
+    });
+  </script>
+<% } %>
+</div>
+
+<%- include('partials/layout-end') %>

@@ -1,0 +1,41 @@
+<%# Sales quick actions (follow-up / hold / log contact). Locals: c %>
+<section class="td-section" id="clientPanel" data-client-id="<%= c.id %>">
+  <h3 class="td-h">Follow-up</h3>
+  <div class="quick-actions">
+    <button type="button" class="chip-btn" data-followup="1w">через неделю</button>
+    <button type="button" class="chip-btn" data-followup="2w">2 недели</button>
+    <button type="button" class="chip-btn" data-followup="1m">месяц</button>
+    <button type="button" class="chip-btn" data-followup="3m">3 месяца</button>
+    <button type="button" class="chip-btn" id="followupCustomBtn">дата…</button>
+  </div>
+  <form id="followupCustomForm" class="inline-form" hidden>
+    <input type="date" name="custom_date" required aria-label="Дата">
+    <input type="time" name="custom_time" aria-label="Время">
+    <button type="submit" class="btn btn-sm btn-primary">Ок</button>
+  </form>
+  <details class="sub-details">
+    <summary>Поставить на hold / зафиксировать контакт</summary>
+    <form id="holdForm" class="stack-form">
+      <input type="text" name="reason" placeholder="Причина hold, например: ждут бюджет" aria-label="Причина hold">
+      <div class="inline-form">
+        <select name="preset" aria-label="Вернуться через">
+          <option value="1w">через неделю</option>
+          <option value="2w">через 2 недели</option>
+          <option value="1m" selected>через месяц</option>
+          <option value="3m">через 3 месяца</option>
+        </select>
+        <button type="submit" class="btn btn-sm">Поставить на hold</button>
+      </div>
+    </form>
+    <form id="logContactForm" class="stack-form">
+      <textarea name="summary" rows="2" placeholder="О чём договорились" aria-label="О чём договорились"></textarea>
+      <input type="text" name="outcome" placeholder="Итог" aria-label="Итог">
+      <input type="text" name="next_action" placeholder="Следующий шаг (станет действием по клиенту)" aria-label="Следующий шаг">
+      <div class="inline-form">
+        <input type="date" name="next_date" aria-label="Дата следующего шага">
+        <input type="time" name="next_time" aria-label="Время">
+        <button type="submit" class="btn btn-sm btn-primary">Зафиксировать</button>
+      </div>
+    </form>
+  </details>
+</section>

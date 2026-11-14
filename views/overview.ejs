@@ -1,0 +1,120 @@
+<%- include('partials/layout-start') %>
+
+<header class="page-header">
+  <p class="crumb"><a href="/">← Главная</a></p>
+  <div class="page-title-row">
+    <h1 class="page-title">📊 Сводка команды</h1>
+    <nav class="view-tabs" aria-label="Сводка">
+      <a href="/overview" class="<%= f === 'people' ? 'active' : '' %>">По людям</a>
+      <a href="/overview?f=overdue" class="<%= f === 'overdue' ? 'active' : '' %>">Просрочено <span class="lv-muted"><%= counts.overdueCount %></span></a>
+      <a href="/overview?f=today" class="<%= f === 'today' ? 'active' : '' %>">Сегодня <span class="lv-muted"><%= counts.todayCount %></span></a>
+      <a href="/overview?f=unassigned" class="<%= f === 'unassigned' ? 'active' : '' %>">Без исполнителя <span class="lv-muted"><%= counts.unassignedCount %></span></a>
+      <a href="/overview?f=done" class="<%= f === 'done' ? 'active' : '' %>">✓ Выполнено</a>
+    </nav>
+  </div>
+  <p class="subtitle">Вся команда PulsAura: задачи и подзадачи в работе. Личные workspace сюда не попадают.</p>
+</header>
+
+<%# Rows: title opens the task in the side drawer; date + people circles change it right here. %>
+<% function row(it) { %>
+  <div class="home-row">
+    <a href="?task=<%= it.link_id %>" class="home-title drawer-link" data-task-id="<%= it.link_id %>"><% if (it.kind === 'meeting') { %>📞 <% } %><%= it.title %></a>
+    <span class="home-where"><%= it.where %></span>
+    <span class="home-qp"><%- include('partials/qp', { kind: it.is_subtask ? 'subtask' : 'task', id: it.id, taskId: it.link_id, date: it.due_date, time: it.due_time, people: it.people, canEdit: true, showName: it.people.length === 1 }) %></span>
+  </div>
+<% } %>
+<div id="ovContent">
+
+<% if (f === 'people') { %>
+  <div class="ov-grid">
+    <% people.forEach(p => { %>
+      <section class="card ov-person<%= p.overdue.length ? ' has-overdue' : '' %>">
+        <header class="ov-head">
+          <span class="avatar"><%= fmt.initials(p.name) %></span>
+          <a href="/team/<%= p.id %>" class="ov-name"><%= p.name %></a>
+          <span class="tc-spacer"></span>
+          <span class="ov-count<%= p.overdue.length ? ' due-overdue' : ' lv-muted' %>" title="просрочено">⚠ <%= p.overdue.length %></span>
+          <span class="ov-count due-today" title="на сегодня">● <%= p.today.length %></span>
+          <span class="ov-count lv-muted" title="на неделе / всего в работе"><%= p.week.length %> · <%= p.total %></span>
+        </header>
+        <% const all = [...p.overdue, ...p.today, ...p.week, ...p.later, ...p.none]; %>
+        <% if (all.length) { %>
+          <div class="ov-list">
+            <% all.slice(0, 8).forEach(it => { %>
+              <div class="ov-item">
+                <a href="?task=<%= it.link_id %>" class="ov-item-title drawer-link" data-task-id="<%= it.link_id %>"><%= it.title %></a>
+                <span class="home-qp"><%- include('partials/qp', { kind: it.is_subtask ? 'subtask' : 'task', id: it.id, taskId: it.link_id, date: it.due_date, time: it.due_time, people: it.people, canEdit: true, showName: false }) %></span>
+              </div>
+            <% }) %>
+            <% if (all.length > 8) { %><a href="/team/<%= p.id %>" class="ov-more">ещё <%= all.length - 8 %> →</a><% } %>
+          </div>
+        <% } else { %>
+          <p class="ov-ok">Задач нет</p>
+        <% } %>
+      </section>
+    <% }) %>
+  </div>
+  <p class="subtitle" style="margin-top:12px;">⚠ — просрочено · ● — на сегодня · дальше: на ближайшую неделю · всего в работе. Нажмите на имя — все задачи человека.</p>
+<% } else if (f === 'done') { %>
+  <div class="ov-done-head">
+    <div class="segmented">
+      <a href="/overview?f=done&p=today" class="<%= period === 'today' ? 'active' : '' %>">За сутки</a>
+      <a href="/overview?f=done&p=week" class="<%= period === 'week' ? 'active' : '' %>">За неделю</a>
+      <a href="/overview?f=done&p=month" class="<%= period === 'month' ? 'active' : '' %>">За месяц</a>
+    </div>
+    <span class="lv-muted">Всего: <b style="color:var(--text);"><%= done.length %></b></span>
+    <% doneBy.forEach(p => { %>
+      <a href="/team/<%= p.id %>?completed=1" class="ov-done-person"><span class="avatar avatar-xs"><%= fmt.initials(p.name) %></span><%= fmt.firstName(p.name) %> <b><%= p.n %></b></a>
+    <% }) %>
+  </div>
+  <div class="card home-card">
+    <% done.forEach(it => { %>
+      <div class="home-row is-done">
+        <span class="ov-check" aria-hidden="true">✓</span>
+        <a href="?task=<%= it.link_id %>" class="home-title drawer-link" data-task-id="<%= it.link_id %>"><%= it.title %></a>
+        <span class="home-where"><%= it.where %></span>
+        <span class="qp-avatars" title="<%= it.people.map(p => p.name).join(', ') %>"><% it.people.slice(0, 3).forEach(p => { %><span class="avatar avatar-xs"><%= fmt.initials(p.name) %></span><% }) %></span>
+        <span class="home-due" title="<%= it.closed_by ? 'Закрыл(а): ' + it.closed_by : '' %>"><%= fmt.fmtTimestamp(it.completed_at) %></span>
+      </div>
+    <% }) %>
+    <% if (!done.length) { %><div class="empty-state">За этот период ничего не закрыто.</div><% } %>
+  </div>
+<% } else { %>
+  <div class="card home-card">
+    <% list.forEach(row) %>
+    <% if (!list.length) { %><div class="empty-state"><%= f === 'overdue' ? 'Ничего не просрочено 👍' : f === 'today' ? 'На сегодня у команды пусто.' : 'Все карточки с исполнителями 👍' %></div><% } %>
+  </div>
+<% } %>
+</div>
+
+<%- include('partials/drawer') %>
+<script src="/js/api.js"></script>
+<script src="/js/task.js"></script>
+<script src="/js/quick-pickers.js"></script>
+<script src="/js/drawer.js"></script>
+<script>
+// After any change (circles, drawer): re-fetch this page and swap the content, keep scroll.
+(function () {
+  let timer;
+  async function refresh() {
+    const url = new URL(location.href);
+    url.searchParams.delete('task');
+    const res = await fetch(url).catch(() => null);
+    if (!res || !res.ok) return;
+    const tpl = document.createElement('template');
+    tpl.innerHTML = await res.text();
+    const fresh = tpl.content.querySelector('#ovContent');
+    const cur = document.getElementById('ovContent');
+    if (fresh && cur) cur.replaceWith(fresh);
+    tpl.content.querySelectorAll('.view-tabs a').forEach((a, i) => {
+      const mine = document.querySelectorAll('.view-tabs a')[i];
+      if (mine) mine.innerHTML = a.innerHTML;
+    });
+  }
+  const later = () => { clearTimeout(timer); timer = setTimeout(refresh, 250); };
+  document.addEventListener('task:changed', later);
+  document.addEventListener('task:deleted', later);
+})();
+</script>
+
+<%- include('partials/layout-end') %>

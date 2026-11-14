@@ -1,0 +1,11 @@
+.git
+node_modules
+data
+tmp
+dist
+.wrangler
+.env
+.env.*
+.dev.vars*
+.cloudflare-secrets*
+cloudflare/generated

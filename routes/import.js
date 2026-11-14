@@ -9,12 +9,8 @@ const importService = require('../lib/import-service');
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: 1 } });
 
-// Previews waiting for "Применить" (in memory, 30 min).
-const pending = new Map();
-setInterval(() => {
-  const cutoff = Date.now() - 30 * 60 * 1000;
-  for (const [k, v] of pending) if (v.at < cutoff) pending.delete(k);
-}, 5 * 60 * 1000).unref();
+// Preview tokens are private to their user and persist across restarts.
+const pending = require('../lib/transient-store').createStore('import-preview', 30 * 60 * 1000);
 
 function loadSpace(req, res) {
   const space = db.prepare('SELECT * FROM spaces WHERE id = ?').get(req.params.id);
@@ -63,7 +59,12 @@ router.get('/:id/import', (req, res) => {
 
 router.get('/:id/import/template.xlsx', (req, res) => {
   const space = loadSpace(req, res);
-  if (space) res.download(path.join(__dirname, '..', 'assets', 'pulsaura-import-template.xlsx'), 'PulsAura — шаблон импорта клиентов.xlsx');
+  if (!space) return;
+  if (process.env.CRM_CLOUDFLARE) {
+    res.attachment('PulsAura — шаблон импорта клиентов.xlsx');
+    return res.send(Buffer.from(require('../cloudflare/generated/templates.cjs').importTemplate, 'base64'));
+  }
+  res.download(path.join(__dirname, '..', 'assets', 'pulsaura-import-template.xlsx'), 'PulsAura — шаблон импорта клиентов.xlsx');
 });
 
 router.post('/:id/import/preview', upload.single('file'), async (req, res) => {

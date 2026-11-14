@@ -8,7 +8,7 @@ const overview = require('../lib/team-overview');
 const router = express.Router();
 
 function greeting(name) {
-  const hour = new Date().getHours();
+  const hour = dates.hour();
   const word = hour < 5 ? 'Доброй ночи' : hour < 12 ? 'Доброе утро' : hour < 18 ? 'Добрый день' : 'Добрый вечер';
   return `${word}, ${name.split(' ')[0]}`;
 }

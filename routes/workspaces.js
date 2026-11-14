@@ -80,14 +80,16 @@ router.post('/:id/leave', (req, res) => {
 });
 
 // Deletes the workspace with all its spaces and tasks (FK cascade). Snapshot first.
-router.post('/:id/delete', (req, res) => {
+router.post('/:id/delete', async (req, res, next) => {
+  try {
   const ws = perms.ownWorkspace(req.user, req.params.id);
   if (!ws) return res.status(404).send('Workspace не найден');
   if (String(req.body.confirm_name || '').trim() !== ws.name) return res.redirect(`/workspaces/${ws.id}?msg=confirm`);
-  makeBackup(db, db.filePath, `before-delete-workspace-${ws.id}`);
+  await makeBackup(db, db.filePath, `before-delete-workspace-${ws.id}`);
   db.prepare('DELETE FROM workspaces WHERE id = ?').run(ws.id);
   if (Number(req.session.ws) === ws.id) req.session.ws = null;
   res.redirect('/');
+  } catch (err) { next(err); }
 });
 
 module.exports = router;

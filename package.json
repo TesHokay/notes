@@ -11,9 +11,16 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "seed": "node db/seed.js",
-    "test": "node --test tests/task-service.test.js tests/import.test.js tests/reminders.test.js tests/telegram-auth.test.js tests/trash.test.js tests/clients.test.js tests/workspaces.test.js tests/recurrence.test.js tests/sales.test.js tests/outreach.test.js",
+    "test": "node --test tests/task-service.test.js tests/import.test.js tests/reminders.test.js tests/telegram-auth.test.js tests/trash.test.js tests/clients.test.js tests/workspaces.test.js tests/recurrence.test.js tests/sales.test.js tests/outreach.test.js tests/cloudflare.test.js",
     "check": "node scripts/check.js",
-    "test:e2e": "node tests/e2e/acceptance.js"
+    "test:e2e": "node tests/e2e/acceptance.js",
+    "cf:build": "node scripts/build-cloudflare.mjs",
+    "cf:dev": "wrangler dev --port 8787",
+    "cf:deploy": "node scripts/deploy-cloudflare.mjs",
+    "cf:check": "wrangler deploy --dry-run",
+    "test:cloudflare": "node scripts/test-cloudflare.mjs",
+    "cf:telegram": "node scripts/configure-telegram.mjs",
+    "cf:export": "node scripts/export-cloudflare-backup.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -23,5 +30,12 @@
     "express": "^4.21.0",
     "multer": "^2.4.0",
     "read-excel-file": "^9.3.10"
+  },
+  "devDependencies": {
+    "acorn": "8.19.0",
+    "esbuild": "0.28.2",
+    "eslint-scope": "9.1.2",
+    "playwright": "1.65.1",
+    "wrangler": "4.160.1"
   }
 }

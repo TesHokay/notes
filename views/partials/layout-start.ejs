@@ -16,7 +16,7 @@
   <script>window.__USERS = <%- JSON.stringify(typeof allUsers !== 'undefined' ? allUsers : []).replace(/</g, '\\u003c') %>; window.__TZ_LABEL = <%- JSON.stringify(fmt.tzLabel()) %>;
     // "Now" on the CRM's clock (its time zone), whatever zone the browser is in: its local getters
     // (getDate, getHours…) return CRM wall-clock values. Used for "Сегодня/Завтра" and overdue checks.
-    window.__TZ_OFFSET = <%- -new Date().getTimezoneOffset() %>;
+    window.__TZ_OFFSET = <%- fmt.tzOffsetMinutes() %>;
     window.crmNow = () => new Date(Date.now() + (window.__TZ_OFFSET + new Date().getTimezoneOffset()) * 60000);
     // "чт 25.09" for today + offset days on the CRM clock (hints next to Сегодня/Завтра…).
     window.dayHint = (offset) => { const d = window.crmNow(); d.setDate(d.getDate() + offset); const p = n => String(n).padStart(2, '0'); return ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'][d.getDay()] + ' ' + p(d.getDate()) + '.' + p(d.getMonth() + 1); };

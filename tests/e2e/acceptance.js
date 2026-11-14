@@ -84,7 +84,7 @@ async function test(name, fn) {
   page.on('pageerror', e => pageErrors.push(e.message));
   page.on('console', m => { if (m.type() === 'error' && !/favicon/.test(m.text())) pageErrors.push('console: ' + m.text()); });
   page.on('dialog', d => d.accept());
-  await login(page, 'admin@team.local', 'admin123');
+  await login(page, 'admin@team.local', (process.env.ADMIN_PASSWORD || 'admin123'));
   const board = async () => { await page.goto(BASE + '/spaces/2'); await page.locator('#board').waitFor(); };
 
   await test('A — move between columns persists (TODO → IN_PROGRESS → REVIEW)', async () => {
@@ -171,13 +171,13 @@ async function test(name, fn) {
   await test('D — complete subtask on board card', async () => {
     await board();
     const c = card(page, 'DANMAX — ролик');
-    assert((await c.locator('.tc-sub-title').allTextContents()).join('|') === 'Сделать монтаж|Добавить саунд|Сделать обложку', 'initial subs');
+    assert((await c.locator('.tc-sub:not(.is-done) .tc-sub-title').allTextContents()).join('|') === 'Сделать монтаж|Добавить саунд|Сделать обложку', 'initial subs');
     assert((await c.locator('[data-progress-text]').textContent()).trim() === '✓ 0/3', 'initial progress');
     await c.locator('.tc-sub', { hasText: 'Добавить саунд' }).locator('[data-card-subtask-done]').click();
     await page.waitForTimeout(150);
     assert(!(await page.locator('#drawer.open').count()), 'subtask checkbox opened drawer');
     await page.waitForTimeout(700);
-    assert((await c.locator('.tc-sub-title').allTextContents()).join('|') === 'Сделать монтаж|Сделать обложку', 'B still visible');
+    assert((await c.locator('.tc-sub:not(.is-done) .tc-sub-title').allTextContents()).join('|') === 'Сделать монтаж|Сделать обложку', 'B still visible');
     assert((await c.locator('[data-progress-text]').textContent()).trim() === '✓ 1/3', 'progress not 1/3');
     await c.locator('.tc-title').click();
     await page.locator('#drawer.open #completedSubtasks').waitFor();
@@ -197,7 +197,7 @@ async function test(name, fn) {
     await page.keyboard.press('Escape');
     await page.waitForTimeout(400);
     const c = card(page, 'DANMAX — ролик');
-    assert((await c.locator('.tc-sub-title').allTextContents()).join('|') === 'Сделать монтаж', 'board subs: ' + await c.locator('.tc-sub-title').allTextContents());
+    assert((await c.locator('.tc-sub:not(.is-done) .tc-sub-title').allTextContents()).join('|') === 'Сделать монтаж', 'board subs: ' + await c.locator('.tc-sub:not(.is-done) .tc-sub-title').allTextContents());
     assert((await c.locator('[data-progress-text]').textContent()).trim() === '✓ 2/3', 'progress not 2/3');
     await page.reload();
     assert((await card(page, 'DANMAX — ролик').locator('[data-progress-text]').textContent()).trim() === '✓ 2/3', 'progress after refresh');
@@ -207,7 +207,7 @@ async function test(name, fn) {
     const c = card(page, 'DANMAX — ролик');
     await c.locator('[data-card-subtask-done]').first().click();
     await page.waitForTimeout(800);
-    assert(await c.locator('.tc-sub').count() === 0, 'active subtasks still shown');
+    assert(await c.locator('.tc-sub:not(.is-done)').count() === 0, 'active subtasks still shown');
     assert((await c.locator('[data-progress-text]').textContent()).trim() === '✓ 3/3', 'progress not 3/3');
     await c.locator('.tc-title').click();
     await page.locator('#drawer.open').waitFor();
@@ -231,7 +231,7 @@ async function test(name, fn) {
     await page.keyboard.press('Escape');
     await page.keyboard.press('Escape');
     await page.waitForTimeout(400);
-    const subs = await card(page, 'Обложка для трека').locator('.tc-sub-title').allTextContents();
+    const subs = await card(page, 'Обложка для трека').locator('.tc-sub:not(.is-done) .tc-sub-title').allTextContents();
     assert(subs.join('|') === 'Первая|Вторая', 'card subs: ' + subs);
   });
 
@@ -249,7 +249,7 @@ async function test(name, fn) {
     await page.reload();
     await page.locator('#drawer.open').waitFor();
     const label = (await page.locator('[data-dt-label]').textContent()).trim();
-    assert(label === '26 сентября 2026, 18:30', 'label: ' + label);
+    assert(label.includes('26 сентября 2026, 18:30') && label.includes('МСК'), 'label: ' + label);
     await page.goto(BASE + '/spaces/2?view=calendar&month=2026-09');
     const cell = page.locator('.cal-day[data-date="2026-09-26"] .cal-task', { hasText: 'Задача H' });
     assert(await cell.count() === 1, 'not in calendar cell');
@@ -262,9 +262,9 @@ async function test(name, fn) {
     const c = card(page, 'Fish Shop');
     await c.locator('.tc-sub', { hasText: 'Send offer' }).locator('[data-card-subtask-done]').click();
     await page.waitForTimeout(800);
-    assert((await c.locator('.tc-sub-title').allTextContents()).join('|') === 'Follow-up', 'card: ' + await c.locator('.tc-sub-title').allTextContents());
+    assert((await c.locator('.tc-sub:not(.is-done) .tc-sub-title').allTextContents()).join('|') === 'Follow-up', 'card: ' + await c.locator('.tc-sub:not(.is-done) .tc-sub-title').allTextContents());
     await page.reload();
-    assert((await card(page, 'Fish Shop').locator('.tc-sub-title').allTextContents()).join('|') === 'Follow-up', 'after refresh');
+    assert((await card(page, 'Fish Shop').locator('.tc-sub:not(.is-done) .tc-sub-title').allTextContents()).join('|') === 'Follow-up', 'after refresh');
     await card(page, 'Fish Shop').locator('.tc-title').click();
     await page.locator('#drawer.open').waitFor();
     const done = await page.locator('#subtaskDoneList .st-title').evaluateAll(els => els.map(e => e.value));
@@ -284,9 +284,13 @@ async function test(name, fn) {
     await page.locator('#drawer.open').waitFor();
     await page.click('#addSubtaskBtn');
     await page.fill('#subtaskForm input[name=title]', 'Экспорт для Никиты');
-    await page.selectOption('#subtaskForm select[name=assignee_id]', { label: 'Никита Иванов' });
     await page.press('#subtaskForm input[name=title]', 'Enter');
     await page.locator('#subtaskList input[value="Экспорт для Никиты"]').waitFor();
+    const assignedRow = page.locator('#subtaskList .st-row', { has: page.locator('input[value="Экспорт для Никиты"]') });
+    await assignedRow.locator('[data-qp="assignee"]').click();
+    await page.locator('.qp-pop:not([hidden]) .qp-user', { hasText: 'Никита Иванов' }).click();
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
     await p2.goto(BASE + '/');
     const row = p2.locator('.home-row', { hasText: 'Экспорт для Никиты' });
     assert(await row.count() === 1, 'not on Nikita home');
@@ -312,14 +316,14 @@ async function test(name, fn) {
     await page.locator('.qp-pop:not([hidden]) [data-done]').click();
     await page.waitForTimeout(500);
     assert(!(await page.locator('#drawer.open').count()), 'picker opened drawer');
-    assert((await card(page, 'Сделать ролик Shadow Guard').locator('.tc-footer [data-qp="due"]').textContent()).trim() === 'Завтра', 'due label');
+    assert((await card(page, 'Сделать ролик Shadow Guard').locator('.tc-footer [data-qp="due"]').textContent()).trim().startsWith('Завтра'), 'due label');
     await card(page, 'Сделать ролик Shadow Guard').locator('.tc-footer [data-qp="assignee"]').click();
     await page.locator('.qp-pop:not([hidden]) .qp-user', { hasText: 'Никита Иванов' }).click();
     await page.keyboard.press('Escape');
     await page.waitForTimeout(500);
     await page.reload();
     const c2 = card(page, 'Сделать ролик Shadow Guard');
-    assert((await c2.locator('.tc-footer [data-qp="due"]').textContent()).trim() === 'Завтра', 'due after refresh');
+    assert((await c2.locator('.tc-footer [data-qp="due"]').textContent()).trim().startsWith('Завтра'), 'due after refresh');
     assert((await c2.locator('.tc-footer [data-qp="assignee"]').getAttribute('data-assignees')) !== '', 'assignee after refresh');
   });
 
@@ -347,12 +351,12 @@ async function test(name, fn) {
     assert(!(await page.locator('#drawer.open').count()), 'drag opened drawer');
     const inReview = col(page, 'На проверке').locator('.column-body > .task-card', { has: page.locator('.tc-title:text-is("Обложка для трека")') });
     assert(await inReview.count() === 1, 'new card not in target column');
-    assert((await inReview.locator('.tc-sub-title').allTextContents()).join('|') === 'Первая', 'new card subtasks');
+    assert((await inReview.locator('.tc-sub:not(.is-done) .tc-sub-title').allTextContents()).join('|') === 'Первая', 'new card subtasks');
     await page.reload();
     const orig = col(page, 'В работе').locator('.column-body > .task-card', { has: page.locator('.tc-title:text-is("Обложка для трека")') });
-    assert((await orig.locator('.tc-sub-title').allTextContents()).join('|') === 'Вторая', 'original card subtasks after refresh');
+    assert((await orig.locator('.tc-sub:not(.is-done) .tc-sub-title').allTextContents()).join('|') === 'Вторая', 'original card subtasks after refresh');
     const moved = col(page, 'На проверке').locator('.column-body > .task-card', { has: page.locator('.tc-title:text-is("Обложка для трека")') });
-    assert((await moved.locator('.tc-sub-title').allTextContents()).join('|') === 'Первая', 'new card after refresh');
+    assert((await moved.locator('.tc-sub:not(.is-done) .tc-sub-title').allTextContents()).join('|') === 'Первая', 'new card after refresh');
     await moved.locator('.tc-title').click();
     await page.locator('#drawer.open .linked-chip').first().waitFor();
     if (SHOTS) await page.screenshot({ path: SHOTS + '/split.png' });
@@ -370,11 +374,13 @@ async function test(name, fn) {
     await page.goto(BASE + '/');
     const row = page.locator('.home-row', { hasText: 'Вторая' }).first();
     await row.locator('[data-qp="due"]').click();
-    await page.locator('.qp-pop:not([hidden]) [data-q="7"]').click();
+    const soonDate = await page.evaluate(() => { const d = window.crmNow(); d.setDate(d.getDate()+2); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; });
+    await page.locator('.qp-pop:not([hidden]) [data-date]').fill(soonDate);
+    await page.locator('.qp-pop:not([hidden]) [data-date]').press('Tab');
     await page.locator('.qp-pop:not([hidden]) [data-done]').click();
     await page.waitForTimeout(700);
     const sec = await page.locator('.home-section', { has: page.locator('.home-row', { hasText: 'Вторая' }) }).getAttribute('data-home-section');
-    assert(sec === 'soon', 'row not moved to "Скоро": ' + sec);
+    assert(sec === 'dayAfter', 'row not moved to "Послезавтра": ' + sec);
   });
 
   await test('M — Sales list: useful columns instead of "Сайт"', async () => {
@@ -449,7 +455,7 @@ async function test(name, fn) {
     assert(await card(page, 'Кофейня Бодрость').count() === 1, 'imported client card missing');
     const fish = card(page, 'Fish Shop');
     assert(await fish.count() === 1, 'Fish Shop duplicated or missing: ' + await fish.count());
-    assert((await fish.locator('.tc-sub-title').allTextContents()).includes('Отправить КП'), 'imported action missing');
+    assert((await fish.locator('.tc-sub:not(.is-done) .tc-sub-title').allTextContents()).includes('Отправить КП'), 'imported action missing');
   });
 
   await browser.close();

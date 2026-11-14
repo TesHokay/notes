@@ -54,8 +54,7 @@ function loadBoard(space, user, myRole, filters) {
 
 function buildCalendar(monthParam, tasks) {
   const now = new Date();
-  let y = now.getFullYear();
-  let m = now.getMonth() + 1;
+  let [y, m] = dates.localDate(now).split('-').map(Number);
   const match = /^(\d{4})-(\d{2})$/.exec(monthParam || '');
   if (match) { y = Number(match[1]); m = Number(match[2]); }
   const first = new Date(y, m - 1, 1);
@@ -67,7 +66,7 @@ function buildCalendar(monthParam, tasks) {
   const days = [];
   for (let i = 0; i < 42; i++) {
     const d = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i);
-    const iso = dates.localDate(d);
+    const iso = dates.calendarDate(d);
     days.push({ iso, day: d.getDate(), inMonth: d.getMonth() === m - 1, tasks: byDate[iso] || [] });
   }
   const trimmed = days.slice(35).every(d => !d.inMonth) ? days.slice(0, 35) : days;
@@ -183,16 +182,18 @@ router.post('/:id/rename', (req, res) => {
 
 // Owner only. Deletes the space with its columns, cards and project labels (FK cascade);
 // clients and users stay. A DB snapshot is taken first so it can be undone from backups.
-router.post('/:id/delete', (req, res) => {
+router.post('/:id/delete', async (req, res, next) => {
+  try {
   const space = db.prepare('SELECT * FROM spaces WHERE id = ?').get(req.params.id);
   if (!space) return res.status(404).send('Пространство не найдено');
   const personalOwner = perms.personalOwnerOf(space.id);
   if (personalOwner ? personalOwner !== req.user.id : !req.user.is_owner) return res.status(403).send('Удалять пространства может только владелец');
   if (String(req.body.confirm_name || '').trim() !== space.name) return res.redirect(`/spaces/${space.id}/settings?msg=confirm`);
 
-  makeBackup(db, db.filePath, `before-delete-space-${space.id}`);
+  await makeBackup(db, db.filePath, `before-delete-space-${space.id}`);
   db.prepare('DELETE FROM spaces WHERE id = ?').run(space.id);
   res.redirect('/spaces');
+  } catch (err) { next(err); }
 });
 
 router.post('/:id/projects', (req, res) => {

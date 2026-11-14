@@ -80,7 +80,9 @@ router.post('/', (req, res) => {
 router.get('/search', (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) return res.json([]);
-  const rows = db.prepare('SELECT id, name FROM clients WHERE name LIKE ? ORDER BY name LIMIT 40').all(`%${q}%`);
+  const rows = process.env.CRM_CLOUDFLARE && Buffer.byteLength(`%${q}%`)>50
+    ? db.prepare('SELECT id, name FROM clients WHERE instr(lower(name),lower(?)) > 0 ORDER BY name LIMIT 40').all(q)
+    : db.prepare('SELECT id, name FROM clients WHERE name LIKE ? ORDER BY name LIMIT 40').all(`%${q}%`);
   res.json(rows.filter(c => perms.canSeeClient(req.user, c.id)).slice(0, 8));
 });
 
@@ -108,12 +110,14 @@ router.get('/:id', (req, res) => {
 });
 
 // Delete a client from the base. Their Sales cards stay (just no longer linked); history goes.
-router.post('/:id(\\d+)/delete', onlyAllClients, (req, res) => {
+router.post('/:id(\\d+)/delete', onlyAllClients, async (req, res, next) => {
+  try {
   const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(req.params.id);
   if (!client) return res.redirect('/clients');
-  require('../lib/backup').makeBackup(db, db.filePath, `before-delete-client-${client.id}`);
+  await require('../lib/backup').makeBackup(db, db.filePath, `before-delete-client-${client.id}`);
   db.prepare('DELETE FROM clients WHERE id = ?').run(client.id);
   res.redirect('/clients');
+  } catch (err) { next(err); }
 });
 
 router.post('/:id', (req, res) => {

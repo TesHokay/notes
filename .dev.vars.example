@@ -1,0 +1,10 @@
+# Local Wrangler only; never upload this file as production secrets.
+NODE_ENV=development
+SESSION_SECRET=local-development-secret-change-before-production-123456
+SEED_ADMIN_PASSWORD=local-admin-change-me
+APP_URL=http://localhost:8787
+# Optional bot configuration:
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_BOT_USERNAME=
+TELEGRAM_WEBHOOK_SECRET=
+BACKUP_ADMIN_TOKEN=local-development-backup-token-change-me-123456

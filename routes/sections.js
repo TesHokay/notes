@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const perms = require('../lib/permissions');
+const { transaction } = require('../lib/task-service');
 const { renderToString } = require('../lib/render');
 
 const router = express.Router();
@@ -57,12 +58,9 @@ router.post('/sections/:id/move', (req, res) => {
   if (to < 0 || to >= ids.length) return res.json({ ok: true, moved: false });
   [ids[from], ids[to]] = [ids[to], ids[from]];
   const setPos = db.prepare('UPDATE sections SET position = ? WHERE id = ?');
-  db.exec('BEGIN');
   try {
-    ids.forEach((id, i) => setPos.run(i, id));
-    db.exec('COMMIT');
+    transaction(() => ids.forEach((id, i) => setPos.run(i, id)));
   } catch (err) {
-    db.exec('ROLLBACK');
     return res.status(500).json({ error: 'move_failed' });
   }
   res.json({ ok: true, moved: true });
@@ -80,13 +78,12 @@ router.delete('/sections/:id', (req, res) => {
   const active = db.prepare('SELECT COUNT(*) AS c FROM tasks WHERE section_id = ? AND done = 0').get(section.id).c;
   if (active > 0) return res.status(400).json({ error: 'not_empty', count: active });
   const fallback = db.prepare('SELECT id FROM sections WHERE space_id = ? AND id != ? ORDER BY position LIMIT 1').get(section.space_id, section.id);
-  db.exec('BEGIN');
   try {
-    db.prepare('UPDATE tasks SET section_id = ? WHERE section_id = ?').run(fallback.id, section.id);
-    db.prepare('DELETE FROM sections WHERE id = ?').run(section.id);
-    db.exec('COMMIT');
+    transaction(() => {
+      db.prepare('UPDATE tasks SET section_id = ? WHERE section_id = ?').run(fallback.id, section.id);
+      db.prepare('DELETE FROM sections WHERE id = ?').run(section.id);
+    });
   } catch (err) {
-    db.exec('ROLLBACK');
     return res.status(500).json({ error: 'delete_failed' });
   }
   res.json({ ok: true });

@@ -1,8 +1,8 @@
-require('../lib/env');
 const crypto = require('node:crypto');
 const bcrypt = require('bcryptjs');
-const db = require('./index');
 
+function seedDatabase(db, options = {}) {
+const log = options.quiet ? () => {} : console.log;
 const name = process.env.SEED_ADMIN_NAME || 'Admin';
 const email = process.env.SEED_ADMIN_EMAIL || 'admin@team.local';
 // Local dev keeps the old convenient default; on a server a random password is generated
@@ -13,23 +13,23 @@ const password = process.env.SEED_ADMIN_PASSWORD
 const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
 
 if (existing) {
-  console.log(`Пользователь ${email} уже существует, пропускаю.`);
+  log(`Пользователь ${email} уже существует, пропускаю.`);
 } else {
   const hash = bcrypt.hashSync(password, 10);
   db.prepare('INSERT INTO users (name, email, password_hash, is_owner) VALUES (?, ?, ?, 1)')
     .run(name, email, hash);
-  console.log('Создан владелец (owner):');
-  console.log(`  email:    ${email}`);
-  console.log(`  password: ${password}`);
-  console.log('Смените пароль после первого входа.');
+  log('Создан владелец (owner):');
+  log(`  email:    ${email}`);
+  if (!options.quiet) log(`  password: ${password}`);
+  log('Смените пароль после первого входа.');
 }
 
 const inviteCode = db.prepare("SELECT value FROM settings WHERE key = 'invite_code'").get();
 if (!inviteCode) {
   const code = crypto.randomBytes(4).toString('hex');
   db.prepare("INSERT INTO settings (key, value) VALUES ('invite_code', ?)").run(code);
-  console.log(`Создан инвайт-код для регистрации новых участников: ${code}`);
-  console.log('Посмотреть/сменить его можно в разделе «Команда» (только владелец).');
+  log(`Создан инвайт-код для регистрации новых участников: ${code}`);
+  log('Посмотреть/сменить его можно в разделе «Команда» (только владелец).');
 }
 
 const spaceCount = db.prepare('SELECT COUNT(*) AS c FROM spaces').get().c;
@@ -49,13 +49,21 @@ if (spaceCount === 0) {
     s.stages.forEach((stageName, j) => insertSection.run(info.lastInsertRowid, stageName, j));
   });
 
-  console.log('Созданы стандартные пространства с готовыми колонками: Sales, Production, SEO / Website, Strategy.');
-  console.log('Strategy изначально не видна никому, кроме владельцев — добавьте туда участников вручную, если нужно.');
+  log('Созданы стандартные пространства с готовыми колонками: Sales, Production, SEO / Website, Strategy.');
+  log('Strategy изначально не видна никому, кроме владельцев — добавьте туда участников вручную, если нужно.');
 }
 
 const channelCount = db.prepare('SELECT COUNT(*) AS c FROM channels').get().c;
 if (channelCount === 0) {
   const insertChannel = db.prepare('INSERT INTO channels (name, position) VALUES (?, ?)');
   ['general', 'references', 'announcements', 'random'].forEach((n, i) => insertChannel.run(n, i));
-  console.log('Созданы каналы общего фида: #general, #references, #announcements, #random.');
+  log('Созданы каналы общего фида: #general, #references, #announcements, #random.');
+}
+
+}
+
+module.exports = { seedDatabase };
+if (require.main === module) {
+  require('../lib/env');
+  seedDatabase(require('./index'));
 }

@@ -7,7 +7,7 @@ const db = require('../db');
 const router = express.Router();
 
 const upload = multer({
-  storage: multer.diskStorage({
+  storage: process.env.CRM_CLOUDFLARE ? multer.memoryStorage() : multer.diskStorage({
     destination: path.join(__dirname, '..', 'public', 'uploads', 'feed'),
     filename: (req, file, cb) => {
       // Extension comes from the validated MIME type, never from the user's filename.
@@ -78,18 +78,23 @@ router.get('/:channel', (req, res) => {
   });
 });
 
-router.post('/:channel', upload.single('image'), (req, res) => {
+router.post('/:channel', upload.single('image'), async (req, res, next) => {
+  try {
   const channel = getChannels().find(c => c.name === req.params.channel);
   if (!channel) return res.status(404).send('Канал не найден');
 
   const body = (req.body.body || '').trim();
   if (!body && !req.file) return res.redirect(`/feed/${channel.name}`);
 
-  const imagePath = req.file ? `/uploads/feed/${req.file.filename}` : null;
+  let imagePath = req.file ? `/uploads/feed/${req.file.filename}` : null;
+  if (req.file && process.env.CRM_CLOUDFLARE) {
+    imagePath = await require('../cloudflare/uploads.cjs').save(req.file);
+  }
   db.prepare('INSERT INTO posts (channel_id, user_id, body, image_path) VALUES (?, ?, ?, ?)')
     .run(channel.id, req.user.id, body, imagePath);
 
   res.redirect(`/feed/${channel.name}`);
+  } catch (err) { next(err); }
 });
 
 router.post('/posts/:id/comments', (req, res) => {

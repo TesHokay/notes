@@ -327,7 +327,7 @@ router.get('/tasks/:id/ics', (req, res) => {
   if (!task.due_date) return res.status(400).send('У созвона нет даты');
   const [y, m, d] = task.due_date.split('-').map(Number);
   const [hh, mm] = (task.due_time || '10:00').split(':').map(Number);
-  const start = new Date(y, m - 1, d, hh, mm);
+  const start = dates.zonedDate(task.due_date, task.due_time || '10:00');
   const end = new Date(start.getTime() + 60 * 60 * 1000);
   const fmtUtc = dt => dt.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
   const esc = s => String(s || '').replace(/\\/g, '\\\\').replace(/[,;]/g, m => '\\' + m).replace(/\r?\n/g, '\\n');

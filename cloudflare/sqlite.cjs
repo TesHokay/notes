@@ -1,6 +1,6 @@
 const quote = value => '"' + String(value).replace(/"/g, '""') + '"';
 class DurableDatabase {
-  constructor(storage, bucket) { this.storage = storage; this.bucket = bucket; this.depth = 0; this.filePath = 'cloudflare-sqlite'; }
+  constructor(storage, files) { this.storage = storage; this.files = files; this.depth = 0; this.filePath = 'cloudflare-sqlite'; }
   exec(sql) { return this.storage.sql.exec(sql).toArray(); }
   query(sql, parameters) {
     // Durable Objects allow 100 bound values; large boards use safely escaped literals.
@@ -44,10 +44,10 @@ class DurableDatabase {
     const snapshot = this.snapshot();
     const suffix = label ? '_' + label.replace(/[^a-z0-9-]/gi, '') : '';
     const name = 'backups/team-crm-' + snapshot.createdAt.replace(/[:.]/g, '-') + suffix + '.json';
-    await this.bucket.put(name, JSON.stringify(snapshot), { httpMetadata: { contentType: 'application/json' } });
-    const existing = await this.bucket.list({ prefix: 'backups/' });
+    await this.files.put(name, JSON.stringify(snapshot), { httpMetadata: { contentType: 'application/json' } });
+    const existing = await this.files.list({ prefix: 'backups/' });
     const sameKind = existing.objects.filter(o => suffix ? o.key.endsWith(suffix + '.json') : /Z\.json$/.test(o.key)).sort((a,b) => b.key.localeCompare(a.key));
-    if (sameKind.length > keep) await this.bucket.delete(sameKind.slice(keep).map(o => o.key));
+    if (sameKind.length > keep) await this.files.delete(sameKind.slice(keep).map(o => o.key));
     return name;
   }
   restore(snapshot) {

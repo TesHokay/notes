@@ -92,7 +92,8 @@ app.use((req, res) => res.status(404).send('Страница не найдена
 app.use((err, req, res, next) => {
   console.error('[request]', err.message);
   if (res.headersSent) return next(err);
-  res.status(err.status || 500).send('Не удалось выполнить запрос. Попробуйте ещё раз.');
+  if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).send('Файл превышает допустимый размер.');
+  res.status(err.status || 500).send(err.userFacing ? err.message : 'Не удалось выполнить запрос. Попробуйте ещё раз.');
 });
 
 

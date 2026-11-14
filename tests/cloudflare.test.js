@@ -7,8 +7,8 @@ const native=require('../db');
 native.exec('CREATE TABLE IF NOT EXISTS crm_telegram_outbox (id INTEGER PRIMARY KEY AUTOINCREMENT,payload TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,available_at INTEGER NOT NULL DEFAULT 0)');
 native.exec('CREATE TABLE IF NOT EXISTS crm_runtime_state (namespace TEXT NOT NULL,key TEXT NOT NULL,value TEXT NOT NULL,expires_at INTEGER NOT NULL,PRIMARY KEY(namespace,key))');
 const {DurableDatabase}=require('../cloudflare/sqlite.cjs');
-const bucket={objects:new Map(),async put(key,value){this.objects.set(key,value);},async list(){return {objects:[...this.objects.keys()].map(key=>({key}))};},async delete(keys){for(const key of [keys].flat()) this.objects.delete(key);}};
-const database=new DurableDatabase({sql:{exec(sql,...parameters){let values;if(/^\s*(CREATE|ALTER)\b/i.test(sql)&&!parameters.length){native.exec(sql);values=[];}else values=native.prepare(sql).all(...parameters);return {toArray:()=>values};}},transactionSync(fn){native.exec('BEGIN');try{const result=fn();native.exec('COMMIT');return result;}catch(error){native.exec('ROLLBACK');throw error;}}},bucket);
+const fileStore={objects:new Map(),async put(key,value){this.objects.set(key,value);},async list(){return {objects:[...this.objects.keys()].map(key=>({key}))};},async delete(keys){for(const key of [keys].flat()) this.objects.delete(key);}};
+const database=new DurableDatabase({sql:{exec(sql,...parameters){let values;if(/^\s*(CREATE|ALTER)\b/i.test(sql)&&!parameters.length){native.exec(sql);values=[];}else values=native.prepare(sql).all(...parameters);return {toArray:()=>values};}},transactionSync(fn){native.exec('BEGIN');try{const result=fn();native.exec('COMMIT');return result;}catch(error){native.exec('ROLLBACK');throw error;}}},fileStore);
 test('Cloudflare SQL adapter rolls back nested business transactions',()=>{
   assert.throws(()=>database.transactionSync(()=>{database.prepare("INSERT INTO users(name,email,password_hash) VALUES('Rollback','rollback@example.test','hash')").run();database.transactionSync(()=>{throw new Error('cancel');});}),/cancel/);
   assert.equal(database.prepare("SELECT id FROM users WHERE email='rollback@example.test'").get(),undefined);
@@ -29,9 +29,9 @@ test('Worker clock preserves Moscow midnight, calendar days and UTC export',()=>
   assert.equal(dates.localDate(now),'2027-01-01');assert.equal(dates.localTime(now),'01:30');assert.equal(dates.tzOffsetMinutes(now),180);
   assert.equal(dates.zonedDate('2027-01-01','01:30').toISOString(),'2026-12-31T22:30:00.000Z');assert.equal(dates.addDays('2026-12-31',1),'2027-01-01');
 });
-test('R2 backup restores rows and rejects broken foreign keys atomically',async()=>{
+test('durable file backup restores rows and rejects broken foreign keys atomically',async()=>{
   database.prepare("INSERT INTO users(name,email,password_hash) VALUES('Backup','backup@example.test','hash')").run();
-  const name=await database.makeBackup('unit');const snapshot=JSON.parse(bucket.objects.get(name));
+  const name=await database.makeBackup('unit');const snapshot=JSON.parse(fileStore.objects.get(name));
   database.prepare("UPDATE users SET name='changed' WHERE email='backup@example.test'").run();database.restore(snapshot);
   assert.equal(database.prepare("SELECT name FROM users WHERE email='backup@example.test'").get().name,'Backup');
   const broken=structuredClone(snapshot);broken.tables.spaces.push({id:99999,name:'Invalid',workspace_id:99999});

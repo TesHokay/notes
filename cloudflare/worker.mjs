@@ -5,6 +5,8 @@ import runtime from '../lib/runtime.js';
 import schema from '../db/schema.js';
 import seed from '../db/seed.js';
 import adapter from './sqlite.cjs';
+import fileStore from './file-store.cjs';
+export { CrmFiles } from './files.mjs';
 import telegram from '../lib/telegram.js';
 import trash from '../lib/trash.js';
 import dates from '../lib/dates.js';
@@ -20,7 +22,8 @@ export class CrmDatabase extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
     this.queue = Promise.resolve();
-    this.context = { env, database: new adapter.DurableDatabase(ctx.storage, env.FILES), waitUntil: promise => ctx.waitUntil(promise) };
+    const files = new fileStore.FileStore(env.FILES);
+    this.context = { env, files, database: new adapter.DurableDatabase(ctx.storage, files), waitUntil: promise => ctx.waitUntil(promise) };
     ctx.blockConcurrencyWhile(async () => runtime.run(this.context, () => {
       const db = this.context.database;
       db.transactionSync(() => {

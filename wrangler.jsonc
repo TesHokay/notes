@@ -27,6 +27,10 @@
       {
         "name": "CRM",
         "class_name": "CrmDatabase"
+      },
+      {
+        "name": "FILES",
+        "class_name": "CrmFiles"
       }
     ]
   },
@@ -36,12 +40,12 @@
       "new_sqlite_classes": [
         "CrmDatabase"
       ]
-    }
-  ],
-  "r2_buckets": [
+    },
     {
-      "binding": "FILES",
-      "bucket_name": "pulsaura-crm-files"
+      "tag": "v2",
+      "new_sqlite_classes": [
+        "CrmFiles"
+      ]
     }
   ],
   "triggers": {

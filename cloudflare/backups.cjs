@@ -14,8 +14,9 @@ router.use((req,res,next) => {
   next();
 });
 const route = fn => (req, res, next) => Promise.resolve(fn(req, res)).catch(next);
+router.get('/storage', route(async (_req,res) => res.json(await current().files.stats())));
 router.get('/', route(async (_req, res) => {
-  const list = await current().env.FILES.list({ prefix: 'backups/' });
+  const list = await current().files.list({ prefix: 'backups/' });
   res.json({ backups: list.objects.map(o => ({ name: o.key.slice(8), createdAt: o.uploaded, size: o.size })) });
 }));
 router.post('/', route(async (_req, res) => {
@@ -23,7 +24,7 @@ router.post('/', route(async (_req, res) => {
 }));
 router.get('/:filename', route(async (req, res) => {
   if (!/^team-crm-[\w.-]+\.json$/.test(req.params.filename)) return res.sendStatus(404);
-  const object = await current().env.FILES.get('backups/' + req.params.filename);
+  const object = await current().files.get('backups/' + req.params.filename);
   if (!object) return res.sendStatus(404);
   res.attachment(req.params.filename).send(Buffer.from(await object.arrayBuffer()));
 }));

@@ -29,9 +29,6 @@ try {
   if(secrets.SESSION_SECRET.length<32 || secrets.SEED_ADMIN_PASSWORD.length<12) throw new Error('SESSION_SECRET needs at least 32 characters and SEED_ADMIN_PASSWORD at least 12.');
   // Keep the same credentials on every later deployment; never print secret values.
   fs.writeFileSync(secretFile,JSON.stringify(secrets,null,2)+'\n',{mode:0o600});
-  const bucket=config.r2_buckets.find(binding=>binding.binding==='FILES').bucket_name;
-  const provisioned=command(['r2','bucket','create',bucket,'--update-config=false'],false);
-  if(provisioned.status!==0 && !/already exists|already own/i.test(provisioned.output)) throw new Error('R2 bucket could not be created. Enable R2 in the intended Cloudflare account and check your Wrangler login.');
   const deployed=command(['deploy']);
   const address=deployed.output.match(/https:\/\/[a-z0-9.-]+\.workers\.dev\b/i)?.[0];
   secrets.APP_URL ||= address;
